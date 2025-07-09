@@ -1,0 +1,67 @@
+Column	                           Meaning
+____________________________________________________________________________________
+PLAYER_ID:---------- Unique identifier for the player (numeric ID used by the NBA API).
+PLAYER_NAME:---------- Full name of the player.
+NICKNAME:---------- Common nickname (if any) for the player.
+TEAM_ID:---------- Unique identifier for the team (numeric ID used by the NBA API).
+TEAM_ABBREVIATION:---------- Three-letter team code (e.g. LAL, BOS, DAL).
+AGE:---------- Player’s age (in years) during that season.
+GP:---------- Games played.
+W:---------- Games won (team wins when this player appeared).
+L:---------- Games lost (team losses when this player appeared).
+W_PCT:---------- Team win percentage when this player appeared (W / GP).
+MIN:---------- Minutes played per game (average).
+FGM:---------- Field goals made per game.
+FGA:---------- Field goal attempts per game.
+FG_PCT:---------- Field goal percentage (FGM / FGA).
+FG3M:---------- 3-point field goals made per game.
+FG3A:---------- 3-point attempts per game.
+FG3_PCT:---------- 3-point percentage (FG3M / FG3A).
+FTM:---------- Free throws made per game.
+FTA:---------- Free throw attempts per game.
+FT_PCT:---------- Free throw percentage (FTM / FTA).
+OREB:---------- Offensive rebounds per game.
+DREB:---------- Defensive rebounds per game.
+REB:---------- Total rebounds per game (OREB + DREB).
+AST:---------- Assists per game.
+TOV:---------- Turnovers per game.
+STL:---------- Steals per game.
+BLK:---------- Blocks per game.
+BLKA:---------- Times the player was blocked per game (blocks against).
+PF:---------- Personal fouls committed per game.
+PFD:---------- Personal fouls drawn per game (i.e. how often opponents fouled this player).
+PTS:---------- Points scored per game.
+PLUS_MINUS:---------- Plus/minus per game (team net point differential while on court).
+NBA_FANTASY_PTS:---------- Standard NBA fantasy‐points scored per game (league formula).
+DD2:---------- Indicator for a double‐double (1 = yes, 0 = no).
+TD3:---------- Indicator for a triple‐double (1 = yes, 0 = no).
+GP_RANK:---------- Player’s rank (among all players) in games played.
+W_RANK:---------- Rank in team wins (when player appeared).
+L_RANK:---------- Rank in team losses (when player appeared).
+W_PCT_RANK:---------- Rank in win percentage.
+MIN_RANK:---------- Rank in minutes per game.
+FGM_RANK:---------- Rank in field goals made.
+FGA_RANK:---------- Rank in field goal attempts.
+FG_PCT_RANK:---------- Rank in field goal percentage.
+FG3M_RANK:---------- Rank in 3-pointers made.
+FG3A_RANK:---------- Rank in 3-point attempts.
+FG3_PCT_RANK:---------- Rank in 3-point percentage.
+FTM_RANK:---------- Rank in free throws made.
+FTA_RANK:---------- Rank in free throw attempts.
+FT_PCT_RANK:---------- Rank in free throw percentage.
+OREB_RANK:---------- Rank in offensive rebounds.
+DREB_RANK:---------- Rank in defensive rebounds.
+REB_RANK:---------- Rank in total rebounds.
+AST_RANK:---------- Rank in assists.
+TOV_RANK:---------- Rank in turnovers (lower is better).
+STL_RANK:---------- Rank in steals.
+BLK_RANK:---------- Rank in blocks.
+BLKA_RANK:---------- Rank in times being blocked.
+PF_RANK:---------- Rank in personal fouls committed (lower is better).
+PFD_RANK:---------- Rank in fouls drawn.
+PTS_RANK:---------- Rank in points scored.
+PLUS_MINUS_RANK:---------- Rank in plus/minus.
+NBA_FANTASY_PTS_RANK:---------- Rank in NBA fantasy points.
+DD2_RANK:---------- Rank (count) of double‐doubles.
+TD3_RANK:---------- Rank (count) of triple‐doubles.
+WNBA_FANTASY_PTS_RANK:---------- (Not typically used in NBA data—if present, analogous rank in a WNBA fantasy scoring system.)
