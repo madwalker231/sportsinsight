@@ -1,6 +1,8 @@
 import pandas as pd
 from nba_api.stats.endpoints import PlayerGameLog
 from pymongo import MongoClient
+from memory_profiler import profile
+
 
 # MongoDB setup
 MONGO_URI = "mongodb+srv://madwalker231:x91EwbKtLj7b6Ai8@sportsinsight.kkyclry.mongodb.net/?retryWrites=true&w=majority&appName=sportsinsight"
@@ -8,6 +10,7 @@ client = MongoClient(MONGO_URI)
 db = client["sportsinsight"]
 collection = db["lebron_perf_features"]
 
+@profile
 def fetch_player_logs(player_id, season):
     # 1) Pull the PlayerGameLog DataFrame
     df = PlayerGameLog(player_id=player_id, season=season).get_data_frames()[0]
@@ -35,6 +38,7 @@ def fetch_team_defense_rating(game_id):
     # Placeholder: implement real lookup if you have a source
     return 110
 
+@profile
 def build_features(df_player):
     df = df_player.copy()
 
