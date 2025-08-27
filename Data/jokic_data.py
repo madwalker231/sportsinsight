@@ -9,7 +9,6 @@ PLAYER_NAME = "Nikola Jokic"
 SEASONS     = [f"{y}-{str((y+1) % 100).zfill(2)}" for y in range(2013, 2024)]  # '2013-14' ... '2023-24'
 SLEEP_SEC   = 0.7               # be kind to the API
 
-# >>> Fill this with YOUR actual Atlas connection string (or local URI) <<<
 MONGO_URI = "mongodb+srv://madwalker231:x91EwbKtLj7b6Ai8@sportsinsight.kkyclry.mongodb.net/?retryWrites=true&w=majority&appName=sportsinsight"
 
 DB_NAME     = "sportsinsight"
