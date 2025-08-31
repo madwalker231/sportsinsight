@@ -1,0 +1,11 @@
+Player,Model,N,MAE,RMSE,Median_AE,R2,MAE_L5,Skill_vs_L5_%,MAE_STD,Skill_vs_STD_%,File
+Doncic,RandomForest,49,6.878,8.517,5.438,-0.06,7.196,4.4,7.248,5.1,doncic_randomforest_2024_25_predictions.csv
+Embiid,SVR-RBF,18,7.847,9.52,8.066,-0.236,7.989,1.8,8.448,7.1,embiid_svr_2024_25_predictions.csv
+Giannis,MLP,66,5.725,7.571,4.604,-0.079,6.127,6.6,5.784,1.0,giannis_mlp_2024_25_predictions.csv
+Jokic,ElasticNet,69,7.275,9.836,5.628,-0.131,7.916,8.1,7.55,3.6,jokic_elasticnet_2024_25_predictions.csv
+Sga,MLP,75,6.515,8.345,5.485,-0.232,6.165,-5.7,5.783,-12.7,sga_mlp_2024_25_predictions.csv
+Sga,HistGB,75,7.257,9.687,5.59,-0.66,6.165,-17.7,5.783,-25.5,sga_hgb_2024_25_predictions.csv
+Tatum,SVR-RBF,71,6.46,7.763,5.899,-0.05,6.532,1.1,6.549,1.4,tatum_svr_2024_25_predictions.csv
+Tatum,RandomForest,71,6.993,8.371,6.041,-0.221,6.532,-7.0,6.549,-6.8,tatum_randomforest_2024_25_predictions.csv
+Tatum,ElasticNet,71,7.136,8.676,5.871,-0.312,6.532,-9.2,6.549,-9.0,tatum_elasticnet_2024_25_predictions.csv
+Tatum,KNN,71,7.457,8.71,7.0,-0.322,6.532,-14.2,6.549,-13.9,tatum_knn_2024_25_predictions.csv
