@@ -1,0 +1,212 @@
+
+==== TOP 40 CUMTIME: jokic_elasticnet.prof ====
+
+Sun Aug 31 14:36:48 2025    jokic_elasticnet.prof
+
+         4320135 function calls (4276393 primitive calls) in 30.273 seconds
+
+   Ordered by: cumulative time
+   List reduced from 10494 to 40 due to restriction <40>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+   2050/1    0.035    0.000   30.277   30.277 {built-in method builtins.exec}
+        1    0.001    0.001   30.277   30.277 jokic_elasticnet.py:1(<module>)
+       22   15.571    0.708   15.571    0.708 {built-in method time.sleep}
+        1    0.001    0.001   10.076   10.076 jokic_elasticnet.py:73(build_features)
+       22    0.001    0.000    8.958    0.407 http.py:70(send_api_request)
+       22    0.000    0.000    8.956    0.407 api.py:62(get)
+       22    0.000    0.000    8.955    0.407 api.py:14(request)
+       22    0.001    0.000    8.948    0.407 sessions.py:502(request)
+       22    0.001    0.000    8.847    0.402 sessions.py:673(send)
+       22    0.001    0.000    8.834    0.402 adapters.py:434(send)
+       22    0.001    0.000    8.780    0.399 connectionpool.py:596(urlopen)
+       22    0.001    0.000    8.749    0.398 connectionpool.py:381(_make_request)
+       12    0.001    0.000    6.249    0.521 jokic_elasticnet.py:37(fetch_gamelog)
+       22    0.001    0.000    6.136    0.279 connection.py:435(getresponse)
+       22    0.000    0.000    6.130    0.279 client.py:1325(getresponse)
+       22    0.000    0.000    6.129    0.279 client.py:303(begin)
+       22    0.001    0.000    6.118    0.278 client.py:270(_read_status)
+      611    0.001    0.000    6.118    0.010 {method 'readline' of '_io.BufferedReader' objects}
+       41    0.000    0.000    6.118    0.149 ssl.py:1060(recv_into)
+       41    0.000    0.000    6.117    0.149 ssl.py:920(read)
+       31    0.000    0.000    6.117    0.197 socket.py:575(readinto)
+       41    6.117    0.149    6.117    0.149 {method 'read' of '_ssl._SSLSocket' objects}
+       12    0.000    0.000    6.110    0.509 playergamelog.py:16(__init__)
+       12    0.000    0.000    6.109    0.509 playergamelog.py:42(get_request)
+       10    0.001    0.000    2.914    0.291 jokic_elasticnet.py:62(team_def_rating_map)
+       10    0.000    0.000    2.874    0.287 leaguedashteamstats.py:16(__init__)
+       10    0.000    0.000    2.874    0.287 leaguedashteamstats.py:90(get_request)
+       22    0.000    0.000    2.604    0.118 connectionpool.py:1089(_validate_conn)
+       22    0.001    0.000    2.604    0.118 connection.py:609(connect)
+  1597/30    0.009    0.000    2.236    0.075 <frozen importlib._bootstrap>:978(_find_and_load)
+  1592/30    0.005    0.000    2.235    0.074 <frozen importlib._bootstrap>:948(_find_and_load_unlocked)
+  1505/34    0.005    0.000    2.223    0.065 <frozen importlib._bootstrap>:663(_load_unlocked)
+  1304/33    0.004    0.000    2.219    0.067 <frozen importlib._bootstrap_external>:722(exec_module)
+  2024/33    0.001    0.000    2.205    0.067 <frozen importlib._bootstrap>:211(_call_with_frames_removed)
+   623/71    0.001    0.000    1.834    0.026 {built-in method builtins.__import__}
+13355/9889    0.008    0.000    1.643    0.000 <frozen importlib._bootstrap>:1009(_handle_fromlist)
+       22    0.000    0.000    1.347    0.061 connection.py:197(_new_conn)
+       22    0.001    0.000    1.347    0.061 connection.py:27(create_connection)
+        1    0.000    0.000    1.323    1.323 jokic_elasticnet.py:171(save_predictions_to_mongo)
+       23    1.305    0.057    1.305    0.057 {method 'connect' of '_socket.socket' objects}
+
+
+
+==== TOP 40 CUMTIME: doncic_rf.prof ====
+
+Sun Aug 31 14:45:25 2025    doncic_rf.prof
+
+         17990563 function calls (17822013 primitive calls) in 93.797 seconds
+
+   Ordered by: cumulative time
+   List reduced from 10678 to 40 due to restriction <40>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+   2096/1    0.038    0.000   93.800   93.800 {built-in method builtins.exec}
+        1    0.001    0.001   93.800   93.800 doncic_randomforest.py:1(<module>)
+    184/4    0.021    0.000   64.269   16.067 parallel.py:1847(__call__)
+        1    0.000    0.000   63.882   63.882 _search.py:759(fit)
+        1    0.000    0.000   62.979   62.979 _search.py:1390(_run_search)
+        1    0.000    0.000   62.979   62.979 _search.py:825(evaluate_candidates)
+       92    0.025    0.000   62.975    0.685 parallel.py:1764(_get_sequential_output)
+       90    0.003    0.000   62.840    0.698 fixes.py:214(__call__)
+       90    0.006    0.000   62.832    0.698 _validation.py:525(_fit_and_score)
+       92    0.011    0.000   52.555    0.571 _forest.py:297(fit)
+    21966    0.032    0.000   46.807    0.002 parallel.py:1583(_get_outputs)
+     1742   42.520    0.024   42.520    0.024 {built-in method time.sleep}
+    14629    0.106    0.000   29.257    0.002 parallel.py:1691(_retrieve)
+       92    0.035    0.000   17.283    0.188 _forest.py:440(<listcomp>)
+    10900    0.183    0.000   17.248    0.002 _base.py:152(_make_estimator)
+    32674   15.357    0.000   15.357    0.000 {method 'acquire' of '_thread.lock' objects}
+    54777    0.822    0.000   14.395    0.000 base.py:193(get_params)
+    54777    0.839    0.000   13.070    0.000 base.py:162(_get_param_names)
+      184    0.001    0.000   12.799    0.070 parallel.py:1354(_terminate_and_reset)
+      183    0.033    0.000   12.797    0.070 _parallel_backends.py:258(terminate)
+      183    0.001    0.000   12.750    0.070 pool.py:544(terminate)
+      183    0.003    0.000   12.749    0.070 util.py:205(__call__)
+      183    0.007    0.000   12.746    0.070 pool.py:571(_terminate_pool)
+      549    0.007    0.000   12.724    0.023 threading.py:1012(join)
+      749    0.004    0.000   12.717    0.017 threading.py:1050(_wait_for_tstate_lock)
+       91    0.009    0.000   12.001    0.132 _forest.py:950(predict)
+       90    0.002    0.000   11.921    0.132 _validation.py:747(_score)
+       90    0.001    0.000   11.918    0.132 _scorer.py:193(__call__)
+       90    0.001    0.000   11.917    0.132 _scorer.py:230(_score)
+       90    0.001    0.000   11.849    0.132 _scorer.py:65(_cached_call)
+       19    0.001    0.000   10.375    0.546 http.py:70(send_api_request)
+       19    0.000    0.000   10.373    0.546 api.py:62(get)
+       19    0.000    0.000   10.373    0.546 api.py:14(request)
+       19    0.001    0.000   10.366    0.546 sessions.py:502(request)
+    63985    0.085    0.000   10.305    0.000 inspect.py:3081(signature)
+       19    0.001    0.000   10.283    0.541 sessions.py:673(send)
+       19    0.001    0.000   10.271    0.541 adapters.py:434(send)
+       19    0.001    0.000   10.224    0.538 connectionpool.py:596(urlopen)
+    63985    0.087    0.000   10.220    0.000 inspect.py:2829(from_callable)
+       19    0.000    0.000   10.202    0.537 connectionpool.py:381(_make_request)
+
+
+
+==== TOP 40 CUMTIME: embiid_svr.prof ====
+
+Sun Aug 31 14:48:12 2025    embiid_svr.prof
+
+         4202763 function calls (4159034 primitive calls) in 28.033 seconds
+
+   Ordered by: cumulative time
+   List reduced from 10500 to 40 due to restriction <40>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+   2050/1    0.036    0.000   28.036   28.036 {built-in method builtins.exec}
+        1    0.001    0.001   28.036   28.036 embiid_svr.py:1(<module>)
+       21   14.860    0.708   14.860    0.708 {built-in method time.sleep}
+        1    0.000    0.000    8.510    8.510 embiid_svr.py:75(build_features)
+       21    0.001    0.000    6.786    0.323 http.py:70(send_api_request)
+       21    0.000    0.000    6.785    0.323 api.py:62(get)
+       21    0.000    0.000    6.784    0.323 api.py:14(request)
+       21    0.001    0.000    6.777    0.323 sessions.py:502(request)
+       21    0.001    0.000    6.683    0.318 sessions.py:673(send)
+       21    0.001    0.000    6.670    0.318 adapters.py:434(send)
+       21    0.001    0.000    6.621    0.315 connectionpool.py:596(urlopen)
+       21    0.000    0.000    6.598    0.314 connectionpool.py:381(_make_request)
+       12    0.001    0.000    4.857    0.405 embiid_svr.py:39(fetch_gamelog)
+       12    0.000    0.000    4.753    0.396 playergamelog.py:16(__init__)
+       12    0.000    0.000    4.753    0.396 playergamelog.py:42(get_request)
+       21    0.001    0.000    3.928    0.187 connection.py:435(getresponse)
+       21    0.000    0.000    3.923    0.187 client.py:1325(getresponse)
+       21    0.000    0.000    3.922    0.187 client.py:303(begin)
+       21    0.001    0.000    3.912    0.186 client.py:270(_read_status)
+      581    0.001    0.000    3.912    0.007 {method 'readline' of '_io.BufferedReader' objects}
+       39    0.000    0.000    3.911    0.100 ssl.py:1060(recv_into)
+       39    0.000    0.000    3.911    0.100 ssl.py:920(read)
+       29    0.000    0.000    3.911    0.135 socket.py:575(readinto)
+       39    3.911    0.100    3.911    0.100 {method 'read' of '_ssl._SSLSocket' objects}
+       21    0.000    0.000    2.664    0.127 connectionpool.py:1089(_validate_conn)
+       21    0.001    0.000    2.663    0.127 connection.py:609(connect)
+        1    0.000    0.000    2.279    2.279 _search.py:759(fit)
+        1    0.000    0.000    2.255    2.255 _search.py:1390(_run_search)
+        1    0.000    0.000    2.255    2.255 _search.py:825(evaluate_candidates)
+        1    0.000    0.000    2.253    2.253 parallel.py:1847(__call__)
+      128    0.004    0.000    2.253    0.018 parallel.py:1764(_get_sequential_output)
+  1597/29    0.009    0.000    2.135    0.074 <frozen importlib._bootstrap>:978(_find_and_load)
+  1592/29    0.005    0.000    2.134    0.074 <frozen importlib._bootstrap>:948(_find_and_load_unlocked)
+  1505/33    0.006    0.000    2.123    0.064 <frozen importlib._bootstrap>:663(_load_unlocked)
+  1304/32    0.004    0.000    2.118    0.066 <frozen importlib._bootstrap_external>:722(exec_module)
+  2024/32    0.001    0.000    2.111    0.066 <frozen importlib._bootstrap>:211(_call_with_frames_removed)
+        9    0.001    0.000    2.091    0.232 embiid_svr.py:64(team_def_rating_map)
+        9    0.000    0.000    2.058    0.229 leaguedashteamstats.py:16(__init__)
+        9    0.000    0.000    2.058    0.229 leaguedashteamstats.py:90(get_request)
+      126    0.003    0.000    2.054    0.016 fixes.py:214(__call__)
+
+
+
+==== TOP 40 CUMTIME: giannis_mlp.prof ====
+
+Sun Aug 31 14:54:11 2025    giannis_mlp.prof
+
+         24919430 function calls (24871716 primitive calls) in 179.831 seconds
+
+   Ordered by: cumulative time
+   List reduced from 10446 to 40 due to restriction <40>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+   2032/1    0.036    0.000  179.970  179.970 {built-in method builtins.exec}
+        1    0.001    0.001  179.970  179.970 giannis_mlp.py:1(<module>)
+        1    0.000    0.000  151.959  151.959 _search.py:759(fit)
+      122    0.004    0.000  151.936    1.245 pipeline.py:363(fit)
+      122    0.001    0.000  151.701    1.243 _multilayer_perceptron.py:735(fit)
+      122    0.007    0.000  151.700    1.243 _multilayer_perceptron.py:376(_fit)
+      122    2.510    0.021  151.531    1.242 _multilayer_perceptron.py:553(_fit_stochastic)
+        1    0.000    0.000  151.311  151.311 _search.py:1390(_run_search)
+        1    0.000    0.000  151.311  151.311 _search.py:825(evaluate_candidates)
+        1    0.000    0.000  151.308  151.308 parallel.py:1847(__call__)
+      122    0.007    0.000  151.307    1.240 parallel.py:1764(_get_sequential_output)
+      120    0.003    0.000  151.043    1.259 fixes.py:214(__call__)
+      120    0.005    0.000  151.035    1.259 _validation.py:525(_fit_and_score)
+    63244    2.999    0.000   89.702    0.001 _multilayer_perceptron.py:240(_backprop)
+   408864   43.319    0.000   44.062    0.000 extmath.py:120(safe_sparse_dot)
+    26132    0.509    0.000   31.800    0.001 _multilayer_perceptron.py:706(_update_no_improvement_count)
+    26132    0.405    0.000   30.914    0.001 base.py:662(score)
+    63244    3.806    0.000   29.758    0.000 _multilayer_perceptron.py:118(_forward_pass)
+   138310    4.326    0.000   29.510    0.000 _multilayer_perceptron.py:176(_compute_loss_grad)
+    26133    2.316    0.000   18.254    0.001 _regression.py:702(r2_score)
+       24   16.984    0.708   16.984    0.708 {built-in method time.sleep}
+497350/494105    1.663    0.000   16.727    0.000 {built-in method numpy.core._multiarray_umath.implement_array_function}
+    75066   16.058    0.000   16.058    0.000 _base.py:132(inplace_relu_derivative)
+    63244    2.029    0.000   12.742    0.000 _stochastic_optimizers.py:29(update_params)
+   254087    5.150    0.000   12.172    0.000 _methods.py:162(_mean)
+    26253    0.176    0.000   12.042    0.000 _multilayer_perceptron.py:1569(predict)
+    79376    2.130    0.000   11.955    0.000 validation.py:494(check_array)
+        1    0.001    0.001   10.760   10.760 giannis_mlp.py:73(build_features)
+    63244    1.555    0.000   10.555    0.000 _stochastic_optimizers.py:257(_get_updates)
+    90344    0.548    0.000   10.305    0.000 __init__.py:307(_safe_indexing)
+    26253    1.097    0.000   10.189    0.000 _multilayer_perceptron.py:143(_forward_pass_fast)
+    26257    0.341    0.000    9.749    0.000 _regression.py:60(_check_reg_targets)
+   138323    0.397    0.000    8.661    0.000 <__array_function__ internals>:2(mean)
+    90344    1.986    0.000    8.355    0.000 __init__.py:193(_array_indexing)
+   138323    0.881    0.000    7.883    0.000 fromnumeric.py:3322(mean)
+   105991    6.916    0.000    6.916    0.000 _base.py:47(inplace_relu)
+    26132    0.134    0.000    6.809    0.000 __init__.py:602(shuffle)
+    26132    0.412    0.000    6.675    0.000 __init__.py:452(resample)
+    79013    0.407    0.000    6.394    0.000 validation.py:318(check_consistent_length)
+    26740    0.326    0.000    6.249    0.000 base.py:495(_validate_data)
+
+

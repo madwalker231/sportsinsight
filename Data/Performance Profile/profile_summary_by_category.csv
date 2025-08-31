@@ -1,0 +1,5 @@
+profile,Model fit/validation,Network I/O (nba_api),Sleep (throttling),Feature engineering,NumPy compute,Mongo write,Import overhead,Other,Total runtime (s)
+Doncic – RandomForest,0.273,0.005,42.52,0.0,0.0,0.0,0.0,17.448,93.797
+Embiid – SVR,0.007,0.008,14.86,0.002,0.0,0.0,0.025,3.949,28.033
+Giannis – MLP,67.952,0.0,16.984,0.001,2.941,0.0,0.0,31.567,179.831
+Jokic – ElasticNet,0.0,0.01,15.571,0.003,0.0,0.0,0.033,7.459,30.273
