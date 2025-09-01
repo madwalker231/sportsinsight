@@ -1,0 +1,8 @@
+﻿nba_api
+pymongo
+pandas
+numpy
+matplotlib
+scikit-learn
+gprof2dot
+snakeviz
