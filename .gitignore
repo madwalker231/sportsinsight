@@ -16,3 +16,6 @@ Data/data/cache/
 
 # Profiling outputs
 *.prof
+
+# Lockfile for security
+.env
