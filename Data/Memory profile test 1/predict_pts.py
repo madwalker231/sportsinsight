@@ -1,8 +1,13 @@
+import os
+from dotenv import load_dotenv
 import joblib
 import pandas as pd
 from pymongo import MongoClient
 
 from memory_profiler import profile
+
+load_dotenv()
+MONGO_URI = os.getenv("MONGO_URI", "")
 
 @profile
 def main():
@@ -10,7 +15,7 @@ def main():
     model = joblib.load('player_pts_model_rf.joblib')
 
     # 2) Connect to Mongo and pull the latest feature row
-    client = MongoClient("mongodb+srv://madwalker231:x91EwbKtLj7b6Ai8@sportsinsight.kkyclry.mongodb.net/?retryWrites=true&w=majority&appName=sportsinsight")
+    client = MongoClient(MONGO_URI)
     db = client["sportsinsight"]
     collection = db["lebron_perf_features"]
 
