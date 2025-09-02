@@ -1,3 +1,5 @@
+import os
+from dotenv import load_dotenv
 import pandas as pd
 import joblib
 from pymongo import MongoClient
@@ -5,7 +7,8 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 # MongoDB setup
-MONGO_URI = "mongodb+srv://madwalker231:x91EwbKtLj7b6Ai8@sportsinsight.kkyclry.mongodb.net/?retryWrites=true&w=majority&appName=sportsinsight"
+load_dotenv()
+MONGO_URI = os.getenv("MONGO_URI", "")
 client = MongoClient(MONGO_URI)
 db = client["sportsinsight"]
 collection = db["lebron_perf_features"]

@@ -1,3 +1,5 @@
+import os
+from dotenv import load_dotenv
 import time
 import numpy as np
 import pandas as pd
@@ -20,7 +22,8 @@ TRAIN_SEASONS = [f"{y}-{str((y+1) % 100).zfill(2)}" for y in range(2013, 2024)] 
 TEST_SEASON   = "2024-25"
 SLEEP_SEC     = 0.7
 
-MONGO_URI = "mongodb+srv://madwalker231:x91EwbKtLj7b6Ai8@sportsinsight.kkyclry.mongodb.net/?retryWrites=true&w=majority&appName=sportsinsight"
+load_dotenv()
+MONGO_URI = os.getenv("MONGO_URI", "")
 DB_NAME   = "sportsinsight"
 PRED_COLL = "predictions_2024_25"
 

@@ -1,9 +1,12 @@
+import os
+from dotenv import load_dotenv
 import pandas as pd
 from nba_api.stats.endpoints import PlayerGameLog
 from pymongo import MongoClient
 
 # MongoDB setup
-MONGO_URI = "mongodb+srv://madwalker231:x91EwbKtLj7b6Ai8@sportsinsight.kkyclry.mongodb.net/?retryWrites=true&w=majority&appName=sportsinsight"
+load_dotenv()
+MONGO_URI = os.getenv("MONGO_URI", "")
 client = MongoClient(MONGO_URI)
 db = client["sportsinsight"]
 collection = db["ad_perf_features"]

@@ -1,3 +1,5 @@
+import os
+from dotenv import load_dotenv
 import pandas as pd
 import numpy as np
 from pymongo import MongoClient
@@ -12,10 +14,12 @@ from sklearn.neural_network import MLPRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 import matplotlib.pyplot as plt
 
+load_dotenv()
+MONGO_URI = os.getenv("MONGO_URI", "")
 
 def load_and_prepare():
     # 1) Load features from MongoDB
-    client = MongoClient("mongodb+srv://madwalker231:x91EwbKtLj7b6Ai8@sportsinsight.kkyclry.mongodb.net/?retryWrites=true&w=majority")
+    client = MongoClient(MONGO_URI)
     df = pd.DataFrame(list(client["sportsinsight"]["ad_perf_features"].find({})))
     # 2) Convert types and sort
     df['Game_Date'] = pd.to_datetime(df['Game_Date'])

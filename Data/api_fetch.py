@@ -1,8 +1,13 @@
+import os
+from dotenv import load_dotenv
 from nba_api.stats.endpoints import LeagueGameLog
 from pymongo import MongoClient
 import time
 
-def get_mongo_db(uri="mongodb+srv://madwalker231:x91EwbKtLj7b6Ai8@sportsinsight.kkyclry.mongodb.net/?retryWrites=true&w=majority&appName=sportsinsight", db_name="sportsinsight"):
+load_dotenv()
+MONGO_URI = os.getenv("MONGO_URI", "")
+
+def get_mongo_db(uri=MONGO_URI, db_name="sportsinsight"):
     """
     Connect to MongoDB and return the database handle.
     """
