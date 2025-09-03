@@ -5,11 +5,12 @@ import time
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from pathlib import Path
 
 from pymongo import MongoClient, UpdateOne
 
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, RobustScaler
 from sklearn.linear_model import ElasticNet
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
@@ -44,10 +45,11 @@ DB_NAME   = "sportsinsight"
 PRED_COLL = "predictions_2024_25"
 
 # modest, pre-declared HP grid (no optimization theater)
-PARAM_GRID = {
-    "model__alpha":    [1e-3, 3e-3, 1e-2, 3e-2, 1e-1],
-    "model__l1_ratio": [0.3, 0.5, 0.7],
-}
+PARAM_GRID = [{
+  "model": [ElasticNet(max_iter=50000, tol=1e-5, random_state=42)],
+  "model__alpha":    [0.02, 0.03, 0.05, 0.08, 0.10, 0.15],
+  "model__l1_ratio": [0.6, 0.7, 0.8, 0.9, 0.95, 1.0],
+}]
 
 FEATURE_COLS = [
     "PTS_L5","REB_L5","AST_L5","MIN_L5","FGA_L5","FTA_L5","FG3A_L5",
@@ -111,6 +113,12 @@ def build_features(df_all: pd.DataFrame) -> pd.DataFrame:
     df_all["OPP_ABBR"] = opp_home.apply(lambda x: x[0])
     df_all["IS_HOME"]  = opp_home.apply(lambda x: x[1]).astype(int)
 
+    df_all = df_all.sort_values("GAME_DATE").reset_index(drop=True)
+
+    df_all["TRAVEL"] = (
+        df_all.groupby("SEASON")["IS_HOME"].diff().fillna(0).ne(0).astype(int)
+    )
+
     # Opponent DEF_RATING by season (fallback to median)
     def_maps = {}
     seasons = sorted(df_all["SEASON"].unique())
@@ -133,11 +141,20 @@ def build_features(df_all: pd.DataFrame) -> pd.DataFrame:
     # For season openers, use days since previous season game if available; otherwise default to 3
     df_all["REST_DAYS"] = df_all["REST_DAYS"].fillna(3).clip(lower=0)
 
-    # Rolling L5 means (shifted) across full chronology (OK: uses prior-season tail for season openers)
+    df_all["IS_B2B"] = (df_all["REST_DAYS"] == 0).astype(int)
+
+    # Rolling L5 means (shifted) across full chronology
     df_all = df_all.sort_values("GAME_DATE").reset_index(drop=True)
-    for col in ["PTS","REB","AST","MIN","FGA","FTA","FG3A"]:
-        if col in df_all.columns:
-            df_all[f"{col}_L5"] = df_all[col].rolling(5).mean().shift(1)
+    stats_for_rolling = ["PTS", "REB", "AST", "MIN", "FGA", "FTA", "FG3A"]
+    windows = [3, 5]
+
+    for stat in stats_for_rolling:
+        if stat in df_all.columns:
+            for w in windows:
+                df_all[f"{stat}_L{w}"] = df_all[stat].rolling(window=w).mean().shift(1)
+    
+    if {"PTS_L5", "MIN_L5"}.issubset(df_all.columns):
+        df_all["PTSxMIN_L5"] = df_all["PTS_L5"] * df_all["MIN_L5"]
 
     # Season-to-date average baseline (shifted, per season)
     df_all["PTS_SEASON_TD"] = df_all.groupby("SEASON")["PTS"] \
@@ -175,23 +192,26 @@ def evaluate_and_report(y_true, y_pred, y_l5, y_season_td):
     print(f"RMSE:       {rmse:.3f}")
     print(f"Median AE:  {med:.3f}")
     print(f"R^2:        {r2:.3f}")
-    print(f"MAE (L5):   {mae_l5:.3f}   → Skill vs L5: {skill_l5:.1f}%")
-    print(f"MAE (STD):  {mae_std:.3f}  → Skill vs Season-to-date: {skill_std:.1f}%")
+    print(f"MAE (L5):   {mae_l5:.3f}   -> Skill vs L5: {skill_l5:.1f}%")
+    print(f"MAE (STD):  {mae_std:.3f}  -> Skill vs Season-to-date: {skill_std:.1f}%")
     return dict(MAE=mae, RMSE=rmse, MedAE=med, R2=r2, MAE_L5=mae_l5, MAE_STD=mae_std,
                 Skill_L5=skill_l5, Skill_STD=skill_std)
 
 def save_plots(pred_df: pd.DataFrame):
+    output_dir = Path("./plots")
+    output_dir.mkdir(exist_ok=True)
+
     # Pred vs Actual
     plt.figure(figsize=(10,5))
     plt.plot(pd.to_datetime(pred_df["GAME_DATE"]), pred_df["PTS"], marker="o", label="Actual PTS")
-    plt.plot(pd.to_datetime(pred_df["GAME_DATE"]), pred_df["PRED_PTS"], marker="o", label="ElasticNet")
+    plt.plot(pd.to_datetime(pred_df["GAME_DATE"]), pred_df["PRED_PTS"], marker="o", label="ElasticNet (calibrated)")
     plt.plot(pd.to_datetime(pred_df["GAME_DATE"]), pred_df["L5_BASELINE"], linestyle="--", label="L5 baseline")
     plt.xticks(rotation=45, ha="right")
     plt.title("Nikola Jokic – Predicted vs Actual (2024–25)")
     plt.ylabel("Points")
     plt.tight_layout()
     plt.legend()
-    plt.savefig("jokic_pred_vs_actual_2024_25.png", dpi=140)
+    plt.savefig(output_dir / f"{PLAYER_NAME.replace(' ', '_')}_pred_vs_actual_2024_25.png", dpi=140)
 
     # Residuals histogram
     plt.figure(figsize=(6,4))
@@ -200,7 +220,7 @@ def save_plots(pred_df: pd.DataFrame):
     plt.title("Residuals (Actual − Predicted) – 2024–25")
     plt.xlabel("Points")
     plt.tight_layout()
-    plt.savefig("jokic_residuals_hist_2024_25.png", dpi=140)
+    plt.savefig(output_dir / f"{PLAYER_NAME.replace(' ', '_')}_pred_vs_actual_2024_25.png", dpi=140)
 
 def save_predictions_to_mongo(pred_df: pd.DataFrame):
     try:
@@ -229,6 +249,14 @@ def save_predictions_to_mongo(pred_df: pd.DataFrame):
     except Exception as e:
         print(f"(Mongo warning) Could not save predictions: {e}")
 
+def show_coefs(pipe, feat_cols):
+    lr = pipe.named_steps["model"]
+    w = lr.coef_
+    ranked = sorted(zip(np.abs(w), w, feat_cols), reverse=True)
+    print("\nTop |w| coefficients:")
+    for _, val, name in ranked[:12]:
+        print(f"{name:>14s}: {val:+.3f}")
+
 
 if __name__ == "__main__":
     # 1) Fetch raw data
@@ -243,7 +271,9 @@ if __name__ == "__main__":
             else:
                 print(f"{s}: no games")
         except Exception as e:
-            print(f"Fetch error {s}: {e}")
+            print(f"Network error fetching {s}: {e}")
+        except Exception as e:
+            print(f"An unexpected error occurred for {s}: {e}")
     if not dfs:
         raise SystemExit("No data fetched.")
     raw = pd.concat(dfs, ignore_index=True).sort_values("GAME_DATE").reset_index(drop=True)
@@ -254,13 +284,16 @@ if __name__ == "__main__":
     # 3) Split into train (<=2023–24) and test (2024–25)
     train = feats[feats["SEASON"].isin(TRAIN_SEASONS)].copy()
     test  = feats[feats["SEASON"] == TEST_SEASON].copy()
+    feat_cols = [c for c in FEATURE_COLS if c in train.columns and c in test.columns]
+    if not feat_cols:
+        raise SystemExit("No usable features after intersection. Check feature engineering.")
     if train.empty or test.empty:
         raise SystemExit("Train or test set is empty after feature building.")
 
-    X_train = train[FEATURE_COLS].values
+    X_train = train[feat_cols].values
     y_train = train["PTS"].values
 
-    X_test  = test[FEATURE_COLS].values
+    X_test  = test[feat_cols].values
     y_test  = test["PTS"].values
 
     # Baselines for test
@@ -270,9 +303,10 @@ if __name__ == "__main__":
     # 4) Expanding-window CV (inside 2013–24) for ElasticNet
     cv_splits = list(expanding_window_splits(train))
     pipe = Pipeline([
-    ("scaler", StandardScaler()),
-    ("model", ElasticNet(max_iter=10000, random_state=42)),
+        ("scaler", RobustScaler()),
+        ("model", ElasticNet(max_iter=50000, tol=1e-5, random_state=42)),
     ])
+
 
     gs = GridSearchCV(
         pipe,
@@ -291,7 +325,21 @@ if __name__ == "__main__":
     # 5) Final fit on all 2013–24 and predict 2024–25
     best_model = gs.best_estimator_
     best_model.fit(X_train, y_train)
-    y_pred = best_model.predict(X_test)
+    show_coefs(best_model, feat_cols)
+
+    last_tr_idx, last_va_idx = list(expanding_window_splits(train))[-1]
+    X_val = train.iloc[last_va_idx][feat_cols].values
+    y_val = train.iloc[last_va_idx]["PTS"].values
+
+    y_val_hat = best_model.predict(X_val)
+    A = np.vstack([np.ones_like(y_val_hat), y_val_hat]).T
+    if not np.isfinite(a) or not np.isfinite(b) or b <= 0.1:
+        # guard: skip bad/near-flat/negative calibration
+        a, b = 0.0, 1.0
+        print("Calibration skipped (unstable slope); using identity mapping.")
+    
+    y_pred_raw = best_model.predict(X_test)
+    y_pred = np.clip(a + b * y_pred_raw, 0, 80)
 
     # 6) Evaluate on 2024–25
     metrics = evaluate_and_report(y_test, y_pred, l5_base, std_base)
@@ -301,7 +349,7 @@ if __name__ == "__main__":
     out["PRED_PTS"]     = y_pred
     out["L5_BASELINE"]  = l5_base
     out["STD_BASELINE"] = std_base
-    out.to_csv("jokic_elasticnet_2024_25_predictions.csv", index=False)
+    out.to_csv(f"{PLAYER_NAME.replace(' ', '_')}_elasticnet_2024_25_predictions.csv", index=False)
     print("Saved CSV: jokic_elasticnet_2024_25_predictions.csv")
 
     save_plots(out)
