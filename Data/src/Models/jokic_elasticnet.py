@@ -53,7 +53,7 @@ PARAM_GRID = [{
 
 FEATURE_COLS = [
     "PTS_L5","REB_L5","AST_L5","MIN_L5","FGA_L5","FTA_L5","FG3A_L5",
-    "OPP_DEF_RATING","REST_DAYS","IS_HOME"
+    "OPP_DEF_RATING","REST_DAYS","IS_HOME",
 ]
 
 def fetch_gamelog(player_id: int, season: str) -> pd.DataFrame:
@@ -333,11 +333,9 @@ if __name__ == "__main__":
 
     y_val_hat = best_model.predict(X_val)
     A = np.vstack([np.ones_like(y_val_hat), y_val_hat]).T
-    if not np.isfinite(a) or not np.isfinite(b) or b <= 0.1:
-        # guard: skip bad/near-flat/negative calibration
-        a, b = 0.0, 1.0
-        print("Calibration skipped (unstable slope); using identity mapping.")
-    
+    a, b = np.linalg.lstsq(A, y_val, rcond=None)[0]
+    print(f"Calibration: y ≈ {a:.3f} + {b:.3f}·ŷ  (on last validation fold)")
+
     y_pred_raw = best_model.predict(X_test)
     y_pred = np.clip(a + b * y_pred_raw, 0, 80)
 
