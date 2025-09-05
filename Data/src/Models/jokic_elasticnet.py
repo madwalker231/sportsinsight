@@ -5,7 +5,6 @@ import time
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from pathlib import Path
 
 from pymongo import MongoClient, UpdateOne
 
@@ -14,6 +13,7 @@ from sklearn.preprocessing import StandardScaler, RobustScaler
 from sklearn.linear_model import ElasticNet
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.isotonic import IsotonicRegression
 
 try:
     from src.utils.repro import set_all_seeds
@@ -45,16 +45,27 @@ DB_NAME   = "sportsinsight"
 PRED_COLL = "predictions_2024_25"
 
 # modest, pre-declared HP grid (no optimization theater)
-PARAM_GRID = [{
-  "model": [ElasticNet(max_iter=50000, tol=1e-5, random_state=42)],
-  "model__alpha":    [0.02, 0.03, 0.05, 0.08, 0.10, 0.15],
-  "model__l1_ratio": [0.6, 0.7, 0.8, 0.9, 0.95, 1.0],
-}]
+PARAM_GRID = [
+  {
+    "model": [ElasticNet(max_iter=50000, tol=1e-5, random_state=42)],
+    "model__alpha":    [0.01, 0.02, 0.05, 0.08, 0.12, 0.2],
+    "model__l1_ratio": [0.1, 0.3, 0.5, 0.7],  # <- drop 0.9/1.0 for now
+  },
+]
 
-FEATURE_COLS = [
+BASE_FEATURES = [
     "PTS_L5","REB_L5","AST_L5","MIN_L5","FGA_L5","FTA_L5","FG3A_L5",
     "OPP_DEF_RATING","REST_DAYS","IS_HOME",
+    "IS_B2B","PTSxMIN_L5"     # keep your interaction + B2B
 ]
+
+# Start simple: EWMA(3) and Median(5) for PTS; both are shifted(1) to avoid leakage
+SMOOTH_FEATURES = [
+    "PTS_EWMA3",   # exponentially weighted mean, span=3
+    "PTS_MED5"     # rolling median over last 5 games
+]
+
+FEATURE_COLS = BASE_FEATURES + SMOOTH_FEATURES
 
 def fetch_gamelog(player_id: int, season: str) -> pd.DataFrame:
     """Use cached fetch, then normalize columns and attach SEASON."""
@@ -98,6 +109,27 @@ def parse_opp_abbr(matchup: str):
 def team_def_rating_map(season: str) -> dict:
     """Wrapper that uses cached LeagueDashTeamStats for DEF_RATING."""
     return team_def_rating_map_cached(season=season, sleep_sec=SLEEP_SEC)
+
+def add_smoothing_features(df: pd.DataFrame,
+                           target_col: str = "PTS",
+                           ewm_spans=(3,),
+                           med_windows=(5,)) -> pd.DataFrame:
+    """
+    Adds non-leaky smoothing features on `target_col`.
+    - EWMA uses .ewm(span=s, adjust=False).mean().shift(1)
+    - MED uses .rolling(w).median().shift(1)
+    Assumes df is already sorted by GAME_DATE ascending.
+    """
+    out = df.copy()
+    for s in ewm_spans:
+        out[f"{target_col}_EWMA{s}"] = (
+            out[target_col].ewm(span=s, adjust=False).mean().shift(1)
+        )
+    for w in med_windows:
+        out[f"{target_col}_MED{w}"] = (
+            out[target_col].rolling(w).median().shift(1)
+        )
+    return out
 
 def build_features(df_all: pd.DataFrame) -> pd.DataFrame:
     """Compute past-only features across concatenated seasons, then drop rows missing history."""
@@ -145,13 +177,13 @@ def build_features(df_all: pd.DataFrame) -> pd.DataFrame:
 
     # Rolling L5 means (shifted) across full chronology
     df_all = df_all.sort_values("GAME_DATE").reset_index(drop=True)
-    stats_for_rolling = ["PTS", "REB", "AST", "MIN", "FGA", "FTA", "FG3A"]
-    windows = [3, 5]
+    for col in ["PTS","REB","AST","MIN","FGA","FTA","FG3A"]:
+        if col in df_all.columns:
+            df_all[f"{col}_L5"] = df_all[col].rolling(5).mean().shift(1)
+            df_all[f"{col}_L3"] = df_all[col].rolling(3).mean().shift(1)
 
-    for stat in stats_for_rolling:
-        if stat in df_all.columns:
-            for w in windows:
-                df_all[f"{stat}_L{w}"] = df_all[stat].rolling(window=w).mean().shift(1)
+    df_all["PTS_EWMA3"] = df_all["PTS"].ewm(span=3, adjust=False).mean().shift(1)
+    df_all["PTS_MED5"]  = df_all["PTS"].rolling(5).median().shift(1)
     
     if {"PTS_L5", "MIN_L5"}.issubset(df_all.columns):
         df_all["PTSxMIN_L5"] = df_all["PTS_L5"] * df_all["MIN_L5"]
@@ -198,8 +230,6 @@ def evaluate_and_report(y_true, y_pred, y_l5, y_season_td):
                 Skill_L5=skill_l5, Skill_STD=skill_std)
 
 def save_plots(pred_df: pd.DataFrame):
-    output_dir = Path("./plots")
-    output_dir.mkdir(exist_ok=True)
 
     # Pred vs Actual
     plt.figure(figsize=(10,5))
@@ -211,7 +241,7 @@ def save_plots(pred_df: pd.DataFrame):
     plt.ylabel("Points")
     plt.tight_layout()
     plt.legend()
-    plt.savefig(output_dir / f"{PLAYER_NAME.replace(' ', '_')}_pred_vs_actual_2024_25.png", dpi=140)
+    plt.savefig("jokic_pred_vs_actual_2024_25.png", dpi=140)
 
     # Residuals histogram
     plt.figure(figsize=(6,4))
@@ -220,7 +250,7 @@ def save_plots(pred_df: pd.DataFrame):
     plt.title("Residuals (Actual − Predicted) – 2024–25")
     plt.xlabel("Points")
     plt.tight_layout()
-    plt.savefig(output_dir / f"{PLAYER_NAME.replace(' ', '_')}_pred_vs_actual_2024_25.png", dpi=140)
+    plt.savefig("jokic_residuals_hist_2024_25.png", dpi=140)
 
 def save_predictions_to_mongo(pred_df: pd.DataFrame):
     try:
@@ -332,12 +362,41 @@ if __name__ == "__main__":
     y_val = train.iloc[last_va_idx]["PTS"].values
 
     y_val_hat = best_model.predict(X_val)
-    A = np.vstack([np.ones_like(y_val_hat), y_val_hat]).T
-    a, b = np.linalg.lstsq(A, y_val, rcond=None)[0]
-    print(f"Calibration: y ≈ {a:.3f} + {b:.3f}·ŷ  (on last validation fold)")
+
+    # guard against degenerate variance before computing corr
+    if np.std(y_val_hat) < 1e-8 or np.std(y_val) < 1e-8:
+        corr = np.nan
+    else:
+        corr = float(np.corrcoef(y_val_hat, y_val)[0, 1])
+
+    a, b = 0.0, 1.0                      # identity by default (no calibration)
+    calib_msg = "identity (no calibration)"
+
+    # initialize temps so they exist even if the block is skipped
+    a_tmp, b_tmp = np.nan, np.nan
+
+    if np.isfinite(corr) and corr > 0.2:
+        A = np.column_stack([np.ones_like(y_val_hat), y_val_hat])
+        try:
+            a_tmp, b_tmp = np.linalg.lstsq(A, y_val, rcond=None)[0]
+        except np.linalg.LinAlgError:
+            a_tmp, b_tmp = np.nan, np.nan
+
+    # only accept a reasonable positive slope
+    if np.isfinite(b_tmp) and 0.25 <= b_tmp <= 1.75:
+        a, b = float(a_tmp), float(b_tmp)
+        calib_msg = f"y ≈ {a:.3f} + {b:.3f}·ŷ"
 
     y_pred_raw = best_model.predict(X_test)
     y_pred = np.clip(a + b * y_pred_raw, 0, 80)
+    print(f"Calibration used: {calib_msg}, corr={corr if np.isfinite(corr) else float('nan'):.3f}")
+
+    if "PTS_EWMA3" in test.columns:
+        mae_ewma = mean_absolute_error(y_test, test["PTS_EWMA3"].values)
+        print(f"Baseline MAE (EWMA3): {mae_ewma:.3f}")
+    if "PTS_MED5" in test.columns:
+        mae_med5 = mean_absolute_error(y_test, test["PTS_MED5"].values)
+        print(f"Baseline MAE (MED5):  {mae_med5:.3f}")
 
     # 6) Evaluate on 2024–25
     metrics = evaluate_and_report(y_test, y_pred, l5_base, std_base)
@@ -347,8 +406,9 @@ if __name__ == "__main__":
     out["PRED_PTS"]     = y_pred
     out["L5_BASELINE"]  = l5_base
     out["STD_BASELINE"] = std_base
-    out.to_csv(f"{PLAYER_NAME.replace(' ', '_')}_elasticnet_2024_25_predictions.csv", index=False)
-    print("Saved CSV: jokic_elasticnet_2024_25_predictions.csv")
+    csv_path = f"{PLAYER_NAME.replace(' ', '_')}_elasticnet_2024_25_predictions.csv"
+    out.to_csv(csv_path, index=False)
+    print(f"Saved CSV: {csv_path}")
 
     save_plots(out)
     print("Saved plots: jokic_pred_vs_actual_2024_25.png, jokic_residuals_hist_2024_25.png")
