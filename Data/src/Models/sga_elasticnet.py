@@ -12,6 +12,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, RobustScaler
 from sklearn.linear_model import ElasticNet
 from sklearn.model_selection import GridSearchCV
+from sklearn.base import clone
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 try:
@@ -369,63 +370,68 @@ if __name__ == "__main__":
     last_tr_idx, last_va_idx = list(expanding_window_splits(train))[-1]
     X_val = train.iloc[last_va_idx][feat_cols].values
     y_val = train.iloc[last_va_idx]["PTS"].values
-
     y_val_hat = best_model.predict(X_val)
 
-    # guard against degenerate variance before computing corr
-    if np.std(y_val_hat) < 1e-8 or np.std(y_val) < 1e-8:
-        corr = np.nan
-    else:
-        corr = float(np.corrcoef(y_val_hat, y_val)[0, 1])
+    def safe_corr(a, b):
+        if np.std(a) < 1e-8 or np.std(b) < 1e-8:
+            return np.nan
+        return float(np.corrcoef(a, b)[0, 1])
 
-    a, b = 0.0, 1.0                      # identity by default (no calibration)
+    corr = safe_corr(y_val_hat, y_val)
+
+    a, b = 0.0, 1.0
     calib_msg = "identity (no calibration)"
-
-    # initialize temps so they exist even if the block is skipped
-    a_tmp, b_tmp = np.nan, np.nan
-
-    if np.isfinite(corr) and corr > 0.2:
+    if np.isfinite(corr) and corr > 0.10:
         A = np.column_stack([np.ones_like(y_val_hat), y_val_hat])
         try:
             a_tmp, b_tmp = np.linalg.lstsq(A, y_val, rcond=None)[0]
         except np.linalg.LinAlgError:
             a_tmp, b_tmp = np.nan, np.nan
-
-    # only accept a reasonable positive slope
-    if np.isfinite(b_tmp) and 0.25 <= b_tmp <= 1.75:
-        a, b = float(a_tmp), float(b_tmp)
-        calib_msg = f"y ≈ {a:.3f} + {b:.3f}·ŷ"
-
-    l5_val  = train.iloc[last_va_idx]["PTS_L5"].values
-    std_val = train.iloc[last_va_idx]["PTS_SEASON_TD"].values
-
-    # search λ in [0..1] to blend model with the better of L5 / STD (choose one)
-    base_val = l5_val  # or std_val
-    y_val_model = a + b * best_model.predict(X_val)
-
-    best_lam, best_mae = 1.0, float("inf")
-    for lam in np.linspace(0.0, 1.0, 11):
-        y_blend = lam * y_val_model + (1 - lam) * base_val
-        mae = mean_absolute_error(y_val, y_blend)
-    if mae < best_mae:
-        best_mae, best_lam = mae, lam
-
-    # Test-time blending
-    y_pred_model = a + b * best_model.predict(X_test)
-    base_test = test["PTS_L5"].values  # or test["PTS_SEASON_TD"].values
-    y_pred = np.clip(best_lam * y_pred_model + (1 - best_lam) * base_test, 0, 80)
-    print(f"Blending: λ={best_lam:.2f} (model weight)")
-
-    y_pred_raw = best_model.predict(X_test)
-    y_pred = np.clip(a + b * y_pred_raw, 0, 80)
+        if np.isfinite(b_tmp) and 0.25 <= b_tmp <= 1.75:
+            a, b = float(a_tmp), float(b_tmp)
+            calib_msg = f"y ≈ {a:.3f} + {b:.3f}·ŷ"
     print(f"Calibration used: {calib_msg}, corr={corr if np.isfinite(corr) else float('nan'):.3f}")
 
+    # --- Choose the best baseline + lambda on validation ---
+   # --- Tiny stacked blend on the validation fold (non-negative weights, sum to 1)
+    y_val_cal = a + b * y_val_hat  # calibrated model preds on validation
+
+    # build validation matrix with whatever baselines exist
+    val_cols = [("model", y_val_cal)]
+    if "PTS_MED5" in train.columns:
+        val_cols.append(("MED5", train.iloc[last_va_idx]["PTS_MED5"].values))
+    if "PTS_SEASON_TD" in train.columns:
+        val_cols.append(("STD",  train.iloc[last_va_idx]["PTS_SEASON_TD"].values))
+
+    names, mats = zip(*val_cols)
+    B_val = np.column_stack(mats)  # shape [n_val, k]
+
+    # non-negative least squares-ish: solve then clamp to ≥0 and renormalize
+    w_raw = np.linalg.lstsq(B_val, y_val, rcond=None)[0]          # unconstrained
+    w = np.maximum(w_raw, 0.0)                                    # clamp negatives
+    w = w / (w.sum() + 1e-12)                                     # sum to 1
+    print("Stacked weights (validation): " + ", ".join(f"{n}={wt:.2f}" for n, wt in zip(names, w)))
+
+    # --- Final test predictions (apply the same weights) ---
+    y_pred_raw = best_model.predict(X_test)
+    y_pred_cal = a + b * y_pred_raw
+
+    test_cols = [y_pred_cal]
+    if "MED5" in names:  # keep column order aligned with 'names'
+        test_cols.append(test["PTS_MED5"].values)
+    if "STD" in names:
+        test_cols.append(test["PTS_SEASON_TD"].values)
+
+    B_test = np.column_stack(test_cols)
+    y_pred = np.clip(B_test @ w, 0, 80)
+
+    # Optional: show baseline MAEs for context (computed on TEST labels)
     if "PTS_EWMA3" in test.columns:
-        mae_ewma = mean_absolute_error(y_test, test["PTS_EWMA3"].values)
-        print(f"Baseline MAE (EWMA3): {mae_ewma:.3f}")
+        print(f"Baseline MAE (EWMA3): {mean_absolute_error(y_test, test['PTS_EWMA3'].values):.3f}")
     if "PTS_MED5" in test.columns:
-        mae_med5 = mean_absolute_error(y_test, test["PTS_MED5"].values)
-        print(f"Baseline MAE (MED5):  {mae_med5:.3f}")
+        print(f"Baseline MAE (MED5):  {mean_absolute_error(y_test, test['PTS_MED5'].values):.3f}")
+    if "PTS_SEASON_TD" in test.columns:
+        print(f"Baseline MAE (STD):   {mean_absolute_error(y_test, test['PTS_SEASON_TD'].values):.3f}")
 
     # 6) Evaluate on 2024–25
     metrics = evaluate_and_report(y_test, y_pred, l5_base, std_base)
