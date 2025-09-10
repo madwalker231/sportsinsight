@@ -10,6 +10,7 @@ from pymongo import MongoClient, UpdateOne
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.base import clone
 
 try:
     from src.utils.repro import set_all_seeds
@@ -42,17 +43,18 @@ MONGO_URI = os.getenv("MONGO_URI", "")
 DB_NAME   = "sportsinsight"
 PRED_COLL = "predictions_2024_25"
 
-# Tight, predeclared RF grid (no optimization theater)
 PARAM_GRID = {
-    "n_estimators":    [50, 100, 200],
-    "max_depth":       [None, 6, 10],
-    "min_samples_leaf":[1, 2],
-    # keep bootstrap=True (default); max_features='auto' deprecated, let sklearn choose
+    "n_estimators":    [100, 200, 400],
+    "max_depth":       [None, 10, 16],
+    "min_samples_leaf":[1, 2, 4],
+    "min_samples_split":[2, 5],
+    "max_features":    [1.0, "sqrt"],  # regression default=1.0; try sqrt too
 }
 
 FEATURE_COLS = [
     "PTS_L5","REB_L5","AST_L5","MIN_L5","FGA_L5","FTA_L5","FG3A_L5",
-    "OPP_DEF_RATING","REST_DAYS","IS_HOME"
+    "OPP_DEF_RATING","REST_DAYS","IS_HOME","IS_B2B",
+    "PTS_EWMA3","PTS_MED5","PTSxMIN_L5",
 ]
 
 def fetch_gamelog(player_id: int, season: str) -> pd.DataFrame:
@@ -132,12 +134,21 @@ def build_features(df_all: pd.DataFrame) -> pd.DataFrame:
     # Rest days (per season)
     df_all["REST_DAYS"] = df_all.groupby("SEASON")["GAME_DATE"].diff().dt.days
     df_all["REST_DAYS"] = df_all["REST_DAYS"].fillna(3).clip(lower=0)
+    df_all["IS_B2B"] = (df_all["REST_DAYS"] == 0).astype(int)
 
     # Rolling L5 (shifted) across full chronology
     df_all = df_all.sort_values("GAME_DATE").reset_index(drop=True)
     for col in ["PTS","REB","AST","MIN","FGA","FTA","FG3A"]:
         if col in df_all.columns:
             df_all[f"{col}_L5"] = df_all[col].rolling(5).mean().shift(1)
+
+    # Light, non-leaky smoothers for the target
+    df_all["PTS_EWMA3"] = df_all["PTS"].ewm(span=3, adjust=False).mean().shift(1)
+    df_all["PTS_MED5"]  = df_all["PTS"].rolling(5).median().shift(1)
+
+    # simple interaction used a lot by models
+    if {"PTS_L5","MIN_L5"}.issubset(df_all.columns):
+        df_all["PTSxMIN_L5"] = df_all["PTS_L5"] * df_all["MIN_L5"]
 
     # Season-to-date baseline (shifted)
     df_all["PTS_SEASON_TD"] = df_all.groupby("SEASON")["PTS"] \
@@ -284,6 +295,92 @@ if __name__ == "__main__":
     best_model = gs.best_estimator_
     best_model.fit(X_train, y_train)
     y_pred = best_model.predict(X_test)
+
+    last_tr_idx, last_va_idx = list(expanding_window_splits(train))[-1]
+    X_val = train.iloc[last_va_idx][FEATURE_COLS].values
+    y_val = train.iloc[last_va_idx]["PTS"].values
+
+    y_val_hat = best_model.predict(X_val)
+
+    def safe_corr(a, b):
+        if np.std(a) < 1e-8 or np.std(b) < 1e-8:
+            return np.nan
+        return float(np.corrcoef(a, b)[0, 1])
+
+    corr = safe_corr(y_val_hat, y_val)
+    a_cal, b_cal = 0.0, 1.0  # identity
+    if np.isfinite(corr) and corr > 0.20:
+        A = np.column_stack([np.ones_like(y_val_hat), y_val_hat])
+        try:
+            a_tmp, b_tmp = np.linalg.lstsq(A, y_val, rcond=None)[0]
+        except np.linalg.LinAlgError:
+            a_tmp, b_tmp = np.nan, np.nan
+        if np.isfinite(b_tmp) and 0.25 <= b_tmp <= 1.75:
+            a_cal, b_cal = float(a_tmp), float(b_tmp)
+    print(f"Calibration used: y ≈ {a_cal:.3f} + {b_cal:.3f}·ŷ, corr={np.nan if not np.isfinite(corr) else corr:.3f}")
+
+    # ---------- Choose stacked weights across folds ----------
+    def choose_stack_weights(train_df, feat_cols, cv_splits, base_cols):
+    # grid over simplex w0+w1+...=1, step 0.05
+        grid = np.arange(0.0, 1.01, 0.05)
+        best_w, best_mae = None, 9e9
+
+        for w0 in grid:               # model weight
+            for w1 in grid:           # MED5 weight
+                w2 = 1.0 - w0 - w1    # STD weight
+                if w2 < -1e-9: 
+                    continue
+                fold_mae = []
+                for tr_idx, va_idx in cv_splits:
+                    X_tr = train_df.iloc[tr_idx][feat_cols].values
+                    y_tr = train_df.iloc[tr_idx]["PTS"].values
+                    X_va = train_df.iloc[va_idx][feat_cols].values
+                    y_va = train_df.iloc[va_idx]["PTS"].values
+
+                    m = clone(best_model)
+                    m.fit(X_tr, y_tr)
+                    y_hat = m.predict(X_va)
+
+                    # quick fold-local calibration (same rules)
+                    a_, b_ = 0.0, 1.0
+                    if np.std(y_hat) > 1e-8 and np.std(y_va) > 1e-8:
+                        c = float(np.corrcoef(y_hat, y_va)[0, 1])
+                    else:
+                        c = np.nan
+                    if np.isfinite(c) and c > 0.20:
+                        A = np.column_stack([np.ones_like(y_hat), y_hat])
+                        try:
+                            a__, b__ = np.linalg.lstsq(A, y_va, rcond=None)[0]
+                        except np.linalg.LinAlgError:
+                            a__, b__ = np.nan, np.nan
+                        if np.isfinite(b__) and 0.25 <= b__ <= 1.75:
+                            a_, b_ = float(a__), float(b__)
+                    y_hat_cal = a_ + b_ * y_hat
+
+                    med5 = train_df.iloc[va_idx][base_cols["MED5"]].values
+                    std  = train_df.iloc[va_idx][base_cols["STD"]].values
+
+                    y_blend = w0*y_hat_cal + w1*med5 + w2*std
+                    fold_mae.append(mean_absolute_error(y_va, y_blend))
+
+                m_mae = np.mean(fold_mae)
+                if m_mae < best_mae:
+                    best_mae, best_w = m_mae, (w0, w1, w2)
+        return best_w
+
+    base_cols = {"MED5": "PTS_MED5", "STD": "PTS_SEASON_TD"}
+    w_model, w_med5, w_std = choose_stack_weights(train, FEATURE_COLS, cv_splits, base_cols)
+    print(f"Stacked weights (validation across folds): model={w_model:.2f}, MED5={w_med5:.2f}, STD={w_std:.2f}")
+
+    y_pred_raw = best_model.predict(X_test)
+    y_pred_cal = a_cal + b_cal * y_pred_raw
+
+    y_pred = w_model * y_pred_cal \
+       + w_med5 * test["PTS_MED5"].values \
+       + w_std  * test["PTS_SEASON_TD"].values
+
+    # keep in a sane range for points
+    y_pred = np.clip(y_pred, 0, 80)
 
     # 6) Evaluate
     metrics = evaluate_and_report(y_test, y_pred, l5_base, std_base)
