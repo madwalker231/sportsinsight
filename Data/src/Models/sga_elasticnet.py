@@ -10,7 +10,7 @@ from pymongo import MongoClient, UpdateOne
 
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, RobustScaler
-from sklearn.linear_model import ElasticNet
+from sklearn.linear_model import ElasticNet, HuberRegressor, QuantileRegressor
 from sklearn.model_selection import GridSearchCV
 from sklearn.base import clone
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
@@ -344,9 +344,8 @@ if __name__ == "__main__":
     cv_splits = list(expanding_window_splits(train))
     pipe = Pipeline([
         ("scaler", RobustScaler()),
-        ("model", ElasticNet(max_iter=50000, tol=1e-5, random_state=42)),
+        ("model", QuantileRegressor(quantile=0.6, alpha=1e-4, solver="highs")),
     ])
-
 
     gs = GridSearchCV(
         pipe,
@@ -367,63 +366,93 @@ if __name__ == "__main__":
     best_model.fit(X_train, y_train)
     show_coefs(best_model, feat_cols)
 
+    def safe_calibrate(y_hat, y_true):
+        # same guard you used before
+        if np.std(y_hat) < 1e-8 or np.std(y_true) < 1e-8:
+            return 0.0, 1.0
+        corr = float(np.corrcoef(y_hat, y_true)[0, 1])
+        if not np.isfinite(corr) or corr <= 0.20:
+            return 0.0, 1.0
+        A = np.column_stack([np.ones_like(y_hat), y_hat])
+        try:
+            a_tmp, b_tmp = np.linalg.lstsq(A, y_true, rcond=None)[0]
+        except np.linalg.LinAlgError:
+            return 0.0, 1.0
+        if np.isfinite(b_tmp) and 0.25 <= b_tmp <= 1.75:
+            return float(a_tmp), float(b_tmp)
+        return 0.0, 1.0
+
+    def grid_simplex(step=0.05):
+        # generate (w_model, w_med5, w_std) >=0, sum=1
+        w = np.arange(0.0, 1.0 + 1e-9, step)
+        for wm in w:
+            for wmed in w:
+                wstd = 1.0 - wm - wmed
+                if wstd < -1e-9: 
+                    continue
+                if wstd < 0: 
+                    wstd = 0.0
+                # tiny numerical drift fix
+                s = wm + wmed + wstd
+                yield (wm/s, wmed/s, wstd/s)
+
+    def choose_stack_weights_cv(train_df, feat_cols, cv_splits, base_cols):
+        # base_cols expected keys: "MED5", "STD"
+        best_triplet = (1.0, 0.0, 0.0)
+        best_mae = 1e18
+
+        for wm, wmed, wstd in grid_simplex(step=0.05):
+            fold_mae = []
+            for tr_idx, va_idx in cv_splits:
+                X_tr = train_df.iloc[tr_idx][feat_cols].values
+                y_tr = train_df.iloc[tr_idx]["PTS"].values
+                X_va = train_df.iloc[va_idx][feat_cols].values
+                y_va = train_df.iloc[va_idx]["PTS"].values
+
+                m = clone(best_model)
+                m.fit(X_tr, y_tr)
+                y_hat = m.predict(X_va)
+
+                a, b = safe_calibrate(y_hat, y_va)
+                y_hat_cal = a + b * y_hat
+
+                parts = [wm * y_hat_cal]
+                parts.append(wmed * train_df.iloc[va_idx][base_cols["MED5"]].values if "MED5" in base_cols else 0.0)
+                parts.append(wstd * train_df.iloc[va_idx][base_cols["STD"]].values if "STD"  in base_cols else 0.0)
+                y_blend = np.sum(parts, axis=0)
+
+                fold_mae.append(mean_absolute_error(y_va, y_blend))
+            mae = float(np.mean(fold_mae))
+            if mae < best_mae:
+                best_mae, best_triplet = mae, (wm, wmed, wstd)
+        return best_triplet, best_mae
+
+    # pick available baselines in TRAIN
+    base_cols = {}
+    if "PTS_MED5" in train.columns:       base_cols["MED5"] = "PTS_MED5"
+    if "PTS_SEASON_TD" in train.columns:  base_cols["STD"]  = "PTS_SEASON_TD"
+
+    # learn weights across folds
+    (wm, wmed, wstd), cv_stack_mae = choose_stack_weights_cv(train, feat_cols, cv_splits, base_cols)
+    print(f"Stacked weights (validation across folds): model={wm:.2f}, MED5={wmed:.2f}, STD={wstd:.2f}")
+
+    # final calibration on the last validation fold (as before)
     last_tr_idx, last_va_idx = list(expanding_window_splits(train))[-1]
     X_val = train.iloc[last_va_idx][feat_cols].values
     y_val = train.iloc[last_va_idx]["PTS"].values
     y_val_hat = best_model.predict(X_val)
+    a, b = safe_calibrate(y_val_hat, y_val)
+    print(f"Calibration used: {'identity (no calibration)' if (a,b)==(0.0,1.0) else f'y ≈ {a:.3f} + {b:.3f}·ŷ'}")
 
-    def safe_corr(a, b):
-        if np.std(a) < 1e-8 or np.std(b) < 1e-8:
-            return np.nan
-        return float(np.corrcoef(a, b)[0, 1])
-
-    corr = safe_corr(y_val_hat, y_val)
-
-    a, b = 0.0, 1.0
-    calib_msg = "identity (no calibration)"
-    if np.isfinite(corr) and corr > 0.10:
-        A = np.column_stack([np.ones_like(y_val_hat), y_val_hat])
-        try:
-            a_tmp, b_tmp = np.linalg.lstsq(A, y_val, rcond=None)[0]
-        except np.linalg.LinAlgError:
-            a_tmp, b_tmp = np.nan, np.nan
-        if np.isfinite(b_tmp) and 0.25 <= b_tmp <= 1.75:
-            a, b = float(a_tmp), float(b_tmp)
-            calib_msg = f"y ≈ {a:.3f} + {b:.3f}·ŷ"
-    print(f"Calibration used: {calib_msg}, corr={corr if np.isfinite(corr) else float('nan'):.3f}")
-
-    # --- Choose the best baseline + lambda on validation ---
-   # --- Tiny stacked blend on the validation fold (non-negative weights, sum to 1)
-    y_val_cal = a + b * y_val_hat  # calibrated model preds on validation
-
-    # build validation matrix with whatever baselines exist
-    val_cols = [("model", y_val_cal)]
-    if "PTS_MED5" in train.columns:
-        val_cols.append(("MED5", train.iloc[last_va_idx]["PTS_MED5"].values))
-    if "PTS_SEASON_TD" in train.columns:
-        val_cols.append(("STD",  train.iloc[last_va_idx]["PTS_SEASON_TD"].values))
-
-    names, mats = zip(*val_cols)
-    B_val = np.column_stack(mats)  # shape [n_val, k]
-
-    # non-negative least squares-ish: solve then clamp to ≥0 and renormalize
-    w_raw = np.linalg.lstsq(B_val, y_val, rcond=None)[0]          # unconstrained
-    w = np.maximum(w_raw, 0.0)                                    # clamp negatives
-    w = w / (w.sum() + 1e-12)                                     # sum to 1
-    print("Stacked weights (validation): " + ", ".join(f"{n}={wt:.2f}" for n, wt in zip(names, w)))
-
-    # --- Final test predictions (apply the same weights) ---
+    # TEST predictions: calibrate model head, then apply stacked weights
     y_pred_raw = best_model.predict(X_test)
     y_pred_cal = a + b * y_pred_raw
 
-    test_cols = [y_pred_cal]
-    if "MED5" in names:  # keep column order aligned with 'names'
-        test_cols.append(test["PTS_MED5"].values)
-    if "STD" in names:
-        test_cols.append(test["PTS_SEASON_TD"].values)
+    parts_test = [wm * y_pred_cal]
+    if "MED5" in base_cols: parts_test.append(wmed * test[base_cols["MED5"]].values)
+    if "STD"  in base_cols: parts_test.append(wstd  * test[base_cols["STD"]].values)
 
-    B_test = np.column_stack(test_cols)
-    y_pred = np.clip(B_test @ w, 0, 80)
+    y_pred = np.clip(np.sum(parts_test, axis=0), 0, 80)
 
     # Optional: show baseline MAEs for context (computed on TEST labels)
     if "PTS_EWMA3" in test.columns:
