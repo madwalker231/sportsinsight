@@ -44,11 +44,11 @@ DB_NAME   = "sportsinsight"
 PRED_COLL = "predictions_2024_25"
 
 PARAM_GRID = {
-    "n_estimators":    [100, 200, 400],
-    "max_depth":       [None, 10, 16],
+    "n_estimators":    [200],
+    "max_depth":       [None, 14],
     "min_samples_leaf":[1, 2, 4],
     "min_samples_split":[2, 5],
-    "max_features":    [1.0, "sqrt"],  # regression default=1.0; try sqrt too
+    "max_features":    ["sqrt", 1.0],  # regression default=1.0; try sqrt too
 }
 
 FEATURE_COLS = [
@@ -320,56 +320,68 @@ if __name__ == "__main__":
     print(f"Calibration used: y ≈ {a_cal:.3f} + {b_cal:.3f}·ŷ, corr={np.nan if not np.isfinite(corr) else corr:.3f}")
 
     # ---------- Choose stacked weights across folds ----------
-    def choose_stack_weights(train_df, feat_cols, cv_splits, base_cols):
-    # grid over simplex w0+w1+...=1, step 0.05
-        grid = np.arange(0.0, 1.01, 0.05)
-        best_w, best_mae = None, 9e9
+    def choose_stack_weights(train_df, feat_cols, cv_splits, base_cols, best_model, step=0.10):
+        """
+        Find weights (w_model, w_med5, w_std) on the simplex using a coarse grid.
+        We fit the model ONCE per fold, cache predictions, then sweep weights.
+        """
+        # ---- precompute fold predictions once ----
+        folds = []  # list of (y_val, y_hat_cal, med5, std)
+        for tr_idx, va_idx in cv_splits:
+            X_tr = train_df.iloc[tr_idx][feat_cols].values
+            y_tr = train_df.iloc[tr_idx]["PTS"].values
+            X_va = train_df.iloc[va_idx][feat_cols].values
+            y_va = train_df.iloc[va_idx]["PTS"].values
 
-        for w0 in grid:               # model weight
-            for w1 in grid:           # MED5 weight
-                w2 = 1.0 - w0 - w1    # STD weight
-                if w2 < -1e-9: 
+            m = clone(best_model)
+            m.fit(X_tr, y_tr)
+            y_hat = m.predict(X_va)
+
+            # fold-local calibration (same rules as elsewhere)
+            a_, b_ = 0.0, 1.0
+            if np.std(y_hat) > 1e-8 and np.std(y_va) > 1e-8:
+                c = float(np.corrcoef(y_hat, y_va)[0, 1])
+            else:
+                c = np.nan
+            if np.isfinite(c) and c > 0.20:
+                A = np.column_stack([np.ones_like(y_hat), y_hat])
+                try:
+                    a__, b__ = np.linalg.lstsq(A, y_va, rcond=None)[0]
+                except np.linalg.LinAlgError:
+                    a__, b__ = np.nan, np.nan
+                if np.isfinite(b__) and 0.25 <= b__ <= 1.75:
+                    a_, b_ = float(a__), float(b__)
+            y_hat_cal = a_ + b_ * y_hat
+
+            med5 = train_df.iloc[va_idx][base_cols["MED5"]].values
+            std  = train_df.iloc[va_idx][base_cols["STD"]].values
+            folds.append((y_va, y_hat_cal, med5, std))
+
+        # ---- sweep weights on the simplex ----
+        grid = np.arange(0.0, 1.0 + 1e-9, step)
+        best = (1.0, 0.0, 0.0)  # default to pure model
+        best_mae = 9e9
+
+        for w_model in grid:
+            for w_med5 in grid:
+                w_std = 1.0 - w_model - w_med5
+                if w_std < 0:  # outside simplex
                     continue
-                fold_mae = []
-                for tr_idx, va_idx in cv_splits:
-                    X_tr = train_df.iloc[tr_idx][feat_cols].values
-                    y_tr = train_df.iloc[tr_idx]["PTS"].values
-                    X_va = train_df.iloc[va_idx][feat_cols].values
-                    y_va = train_df.iloc[va_idx]["PTS"].values
-
-                    m = clone(best_model)
-                    m.fit(X_tr, y_tr)
-                    y_hat = m.predict(X_va)
-
-                    # quick fold-local calibration (same rules)
-                    a_, b_ = 0.0, 1.0
-                    if np.std(y_hat) > 1e-8 and np.std(y_va) > 1e-8:
-                        c = float(np.corrcoef(y_hat, y_va)[0, 1])
-                    else:
-                        c = np.nan
-                    if np.isfinite(c) and c > 0.20:
-                        A = np.column_stack([np.ones_like(y_hat), y_hat])
-                        try:
-                            a__, b__ = np.linalg.lstsq(A, y_va, rcond=None)[0]
-                        except np.linalg.LinAlgError:
-                            a__, b__ = np.nan, np.nan
-                        if np.isfinite(b__) and 0.25 <= b__ <= 1.75:
-                            a_, b_ = float(a__), float(b__)
-                    y_hat_cal = a_ + b_ * y_hat
-
-                    med5 = train_df.iloc[va_idx][base_cols["MED5"]].values
-                    std  = train_df.iloc[va_idx][base_cols["STD"]].values
-
-                    y_blend = w0*y_hat_cal + w1*med5 + w2*std
-                    fold_mae.append(mean_absolute_error(y_va, y_blend))
-
-                m_mae = np.mean(fold_mae)
-                if m_mae < best_mae:
-                    best_mae, best_w = m_mae, (w0, w1, w2)
-        return best_w
+                # compute MAE across all folds without refitting
+                sae = 0.0
+                n   = 0
+                for y_va, y_hat_cal, med5, std in folds:
+                    y_blend = w_model*y_hat_cal + w_med5*med5 + w_std*std
+                    sae += np.abs(y_va - y_blend).sum()
+                    n   += y_va.shape[0]
+                mae = sae / max(n, 1)
+                if mae < best_mae:
+                    best_mae = mae
+                    best     = (w_model, w_med5, w_std)
+        return best
 
     base_cols = {"MED5": "PTS_MED5", "STD": "PTS_SEASON_TD"}
-    w_model, w_med5, w_std = choose_stack_weights(train, FEATURE_COLS, cv_splits, base_cols)
+    w_model, w_med5, w_std = choose_stack_weights(train, FEATURE_COLS, cv_splits, base_cols, best_model, step=0.10)
     print(f"Stacked weights (validation across folds): model={w_model:.2f}, MED5={w_med5:.2f}, STD={w_std:.2f}")
 
     y_pred_raw = best_model.predict(X_test)
