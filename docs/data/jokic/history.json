@@ -1,0 +1,55 @@
+{
+  "player_id": "jokic",
+  "series": [
+    {
+      "game_date": "2025-08-22",
+      "actual": 24.5,
+      "predicted": 25.5
+    },
+    {
+      "game_date": "2025-08-24",
+      "actual": 28.0,
+      "predicted": 27.0
+    },
+    {
+      "game_date": "2025-08-26",
+      "actual": 25.0,
+      "predicted": 26.0
+    },
+    {
+      "game_date": "2025-08-28",
+      "actual": 26.5,
+      "predicted": 27.5
+    },
+    {
+      "game_date": "2025-08-30",
+      "actual": 27.5,
+      "predicted": 26.5
+    },
+    {
+      "game_date": "2025-09-01",
+      "actual": 24.5,
+      "predicted": 25.5
+    },
+    {
+      "game_date": "2025-09-03",
+      "actual": 26.0,
+      "predicted": 27.0
+    },
+    {
+      "game_date": "2025-09-05",
+      "actual": 27.0,
+      "predicted": 26.0
+    },
+    {
+      "game_date": "2025-09-07",
+      "actual": 26.5,
+      "predicted": 27.5
+    },
+    {
+      "game_date": "2025-09-09",
+      "actual": 25.5,
+      "predicted": 26.5
+    }
+  ]
+}

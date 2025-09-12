@@ -1,0 +1,55 @@
+{
+  "player_id": "tatum",
+  "series": [
+    {
+      "game_date": "2025-08-22",
+      "actual": 25.2,
+      "predicted": 26.2
+    },
+    {
+      "game_date": "2025-08-24",
+      "actual": 28.7,
+      "predicted": 27.7
+    },
+    {
+      "game_date": "2025-08-26",
+      "actual": 25.7,
+      "predicted": 26.7
+    },
+    {
+      "game_date": "2025-08-28",
+      "actual": 27.2,
+      "predicted": 28.2
+    },
+    {
+      "game_date": "2025-08-30",
+      "actual": 28.2,
+      "predicted": 27.2
+    },
+    {
+      "game_date": "2025-09-01",
+      "actual": 25.2,
+      "predicted": 26.2
+    },
+    {
+      "game_date": "2025-09-03",
+      "actual": 26.7,
+      "predicted": 27.7
+    },
+    {
+      "game_date": "2025-09-05",
+      "actual": 27.7,
+      "predicted": 26.7
+    },
+    {
+      "game_date": "2025-09-07",
+      "actual": 27.2,
+      "predicted": 28.2
+    },
+    {
+      "game_date": "2025-09-09",
+      "actual": 26.2,
+      "predicted": 27.2
+    }
+  ]
+}
