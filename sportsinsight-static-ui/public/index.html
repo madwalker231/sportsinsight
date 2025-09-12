@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SportsInsight – Static MVP</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <header>
+    <h1>SportsInsight – Next‑Game Points (Static MVP)</h1>
+    <p>Pure HTML/CSS/JS. Data comes from <code>/data/*.json</code>. Replace files with your real exports.</p>
+  </header>
+
+  <main>
+    <section class="controls">
+      <label for="playerSelect">Player</label>
+      <select id="playerSelect"></select>
+      <button id="refreshBtn">Reload Data</button>
+      <span id="status"></span>
+    </section>
+
+    <section class="cards">
+      <div class="card">
+        <h2>Prediction</h2>
+        <div id="predictionValue" class="big-number">—</div>
+        <div id="asOf" class="subtle">As of: —</div>
+      </div>
+      <div class="card">
+        <h2>Top Features</h2>
+        <ul id="featureList" class="feature-list"></ul>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Recent Games — Predicted vs Actual</h2>
+      <canvas id="historyChart" height="110"></canvas>
+      <div class="right"><button id="downloadCsvBtn">Download CSV</button></div>
+    </section>
+  </main>
+
+  <footer>
+    <small>Static MVP • Served via <code>python -m http.server</code> • Folder: <code>public/</code></small>
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>

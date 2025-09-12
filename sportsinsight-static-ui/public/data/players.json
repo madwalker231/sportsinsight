@@ -1,0 +1,34 @@
+{
+  "players": [
+    {
+      "name": "Nikola Jokic",
+      "id": "jokic",
+      "model": "ElasticNet"
+    },
+    {
+      "name": "Luka Doncic",
+      "id": "doncic",
+      "model": "RandomForest"
+    },
+    {
+      "name": "Shai Gilgeous-Alexander",
+      "id": "sga",
+      "model": "ElasticNet"
+    },
+    {
+      "name": "Giannis Antetokounmpo",
+      "id": "giannis",
+      "model": "MLP"
+    },
+    {
+      "name": "Jayson Tatum",
+      "id": "tatum",
+      "model": "SVR"
+    },
+    {
+      "name": "Joel Embiid",
+      "id": "embiid",
+      "model": "SVR"
+    }
+  ]
+}

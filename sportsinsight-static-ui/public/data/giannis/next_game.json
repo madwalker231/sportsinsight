@@ -1,0 +1,11 @@
+{
+  "player_id": "giannis",
+  "predicted_points": 28.1,
+  "as_of": "2025-09-11T12:00:00Z",
+  "explanation": {
+    "min_rolling5": 0.61,
+    "pts_rolling5": 0.29,
+    "home": 0.05,
+    "opp_def_rating": -0.11
+  }
+}

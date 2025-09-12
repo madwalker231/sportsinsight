@@ -1,0 +1,55 @@
+{
+  "player_id": "giannis",
+  "series": [
+    {
+      "game_date": "2025-08-22",
+      "actual": 26.1,
+      "predicted": 27.1
+    },
+    {
+      "game_date": "2025-08-24",
+      "actual": 29.6,
+      "predicted": 28.6
+    },
+    {
+      "game_date": "2025-08-26",
+      "actual": 26.6,
+      "predicted": 27.6
+    },
+    {
+      "game_date": "2025-08-28",
+      "actual": 28.1,
+      "predicted": 29.1
+    },
+    {
+      "game_date": "2025-08-30",
+      "actual": 29.1,
+      "predicted": 28.1
+    },
+    {
+      "game_date": "2025-09-01",
+      "actual": 26.1,
+      "predicted": 27.1
+    },
+    {
+      "game_date": "2025-09-03",
+      "actual": 27.6,
+      "predicted": 28.6
+    },
+    {
+      "game_date": "2025-09-05",
+      "actual": 28.6,
+      "predicted": 27.6
+    },
+    {
+      "game_date": "2025-09-07",
+      "actual": 28.1,
+      "predicted": 29.1
+    },
+    {
+      "game_date": "2025-09-09",
+      "actual": 27.1,
+      "predicted": 28.1
+    }
+  ]
+}

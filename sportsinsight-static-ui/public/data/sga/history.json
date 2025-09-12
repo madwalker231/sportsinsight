@@ -1,0 +1,55 @@
+{
+  "player_id": "sga",
+  "series": [
+    {
+      "game_date": "2025-08-22",
+      "actual": 27.4,
+      "predicted": 28.4
+    },
+    {
+      "game_date": "2025-08-24",
+      "actual": 30.9,
+      "predicted": 29.9
+    },
+    {
+      "game_date": "2025-08-26",
+      "actual": 27.9,
+      "predicted": 28.9
+    },
+    {
+      "game_date": "2025-08-28",
+      "actual": 29.4,
+      "predicted": 30.4
+    },
+    {
+      "game_date": "2025-08-30",
+      "actual": 30.4,
+      "predicted": 29.4
+    },
+    {
+      "game_date": "2025-09-01",
+      "actual": 27.4,
+      "predicted": 28.4
+    },
+    {
+      "game_date": "2025-09-03",
+      "actual": 28.9,
+      "predicted": 29.9
+    },
+    {
+      "game_date": "2025-09-05",
+      "actual": 29.9,
+      "predicted": 28.9
+    },
+    {
+      "game_date": "2025-09-07",
+      "actual": 29.4,
+      "predicted": 30.4
+    },
+    {
+      "game_date": "2025-09-09",
+      "actual": 28.4,
+      "predicted": 29.4
+    }
+  ]
+}
