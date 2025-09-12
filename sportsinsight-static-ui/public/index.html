@@ -10,7 +10,6 @@
 <body>
   <header>
     <h1>SportsInsight – Next‑Game Points (Static MVP)</h1>
-    <p>Pure HTML/CSS/JS. Data comes from <code>/data/*.json</code>. Replace files with your real exports.</p>
   </header>
 
   <main>
@@ -35,13 +34,17 @@
 
     <section class="card">
       <h2>Recent Games — Predicted vs Actual</h2>
-      <canvas id="historyChart" height="110"></canvas>
+      <div class="chart-box"><canvas id="historyChart"></canvas></div>
       <div class="right"><button id="downloadCsvBtn">Download CSV</button></div>
     </section>
   </main>
 
   <footer>
-    <small>Static MVP • Served via <code>python -m http.server</code> • Folder: <code>public/</code></small>
+    Static MVP | Please provide Feedback at the following Google Survey: 
+      <a id="feedbackLink" href="https://docs.google.com/forms/d/e/1FAIpQLSdzx1bfaSMfLh0E2QPfs4xxeu7m2VGPMdNSmFjjywJdQkS1Dg/viewform?usp=header" target="_blank" rel="noopener noreferrer">
+        Survey Link
+      </a>
+    
   </footer>
 
   <script src="./app.js"></script>
