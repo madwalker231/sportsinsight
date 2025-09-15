@@ -162,10 +162,30 @@ footer a:hover
     text-decoration: underline;
 }
 
-@media (max-width: 840px) 
-{ 
-    .cards 
-    { 
-        grid-template-columns: 1fr; 
-    } 
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 8px 0 6px;
+}
+.metrics-grid div {
+  background: #0f1522;
+  border: 1px solid #2a3242;
+  border-radius: 10px;
+  padding: 10px;
+}
+.metrics-grid span { color:#9aa7b6; font-size:12px; display:block; }
+.metrics-grid strong { font-size:18px; }
+
+.img-row {
+  display:flex; gap:12px; flex-wrap:wrap;
+}
+.img-row figure {
+  margin:0; flex:1 1 320px; max-width: 100%;
+}
+.img-row img {
+  display:block; width:100%; height:auto; border-radius:8px; border:1px solid #2a3242;
+}
+@media (max-width:900px){
+  .metrics-grid { grid-template-columns: repeat(2, 1fr); }
 }

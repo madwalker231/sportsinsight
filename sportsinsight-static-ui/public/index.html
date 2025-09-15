@@ -29,22 +29,36 @@
       <span id="status"></span>
     </section>
 
-    <section class="cards">
-      <div class="card">
-        <h2>Prediction</h2>
-        <div id="predictionValue" class="big-number">—</div>
-        <div id="asOf" class="subtle">As of: —</div>
-      </div>
-      <div class="card">
-        <h2>Top Features</h2>
-        <ul id="featureList" class="feature-list"></ul>
-      </div>
-    </section>
-
     <section class="card">
-      <h2>Recent Games — Predicted vs Actual</h2>
-      <div class="chart-box"><canvas id="historyChart"></canvas></div>
-      <div class="right"><button id="downloadCsvBtn">Download CSV</button></div>
+      <h2>Model Metrics — <span id="seasonTag">2024–25</span></h2>
+      <div class="metrics-grid">
+        <div><span>MAE</span><strong id="mMAE">—</strong></div>
+        <div><span>RMSE</span><strong id="mRMSE">—</strong></div>
+        <div><span>Median AE</span><strong id="mMedAE">—</strong></div>
+        <div><span>R²</span><strong id="mR2">—</strong></div>
+        <div><span>MAE (L5)</span><strong id="mMAEL5">—</strong></div>
+        <div><span>Skill vs L5</span><strong id="mSkillL5">—</strong></div>
+        <div><span>MAE (Season-to-date)</span><strong id="mMAESTD">—</strong></div>
+        <div><span>Skill vs Season-to-date</span><strong id="mSkillSTD">—</strong></div>
+      </div>
+    <div class="right">
+      <a id="downloadCsvLink" href="#" download>Download predictions.csv</a>
+    </div>
+  </section>
+
+
+  <section class="card">
+    <h2>Analysis Plots</h2>
+    <div class="img-row">
+        <figure>
+          <img id="imgPredActual" alt="Predicted vs Actual"/>
+          <figcaption>Predicted vs Actual</figcaption>
+        </figure>
+        <figure>
+          <img id="imgResiduals" alt="Residuals histogram"/>
+          <figcaption>Residuals (Actual − Predicted)</figcaption>
+        </figure>
+      </div>
     </section>
   </main>
 

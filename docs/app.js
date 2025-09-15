@@ -5,8 +5,33 @@ const els = {
   predictionValue: document.getElementById('predictionValue'),
   asOf: document.getElementById('asOf'),
   featureList: document.getElementById('featureList'),
-  downloadCsvBtn: document.getElementById('downloadCsvBtn')
+  downloadCsvBtn: document.getElementById('downloadCsvBtn'),
+  MAE: document.getElementById('mMAE'),
+  RMSE: document.getElementById('mRMSE'),
+  MedAE: document.getElementById('mMedAE'),
+  R2: document.getElementById('mR2'),
+  MAE_L5: document.getElementById('mMAEL5'),
+  Skill_L5: document.getElementById('mSkillL5'),
+  MAE_STD: document.getElementById('mMAESTD'),
+  Skill_STD: document.getElementById('mSkillSTD'),
+  seasonTag: document.getElementById('seasonTag'),
+  csv: document.getElementById('downloadCsvLink'),
+  imgPredActual: document.getElementById('imgPredActual'),
+  imgResiduals: document.getElementById('imgResiduals')
 };
+
+function setMetricUI(m) {
+  if (!m) return;
+  const fmt = v => (v == null || Number.isNaN(v)) ? '-' : Number(v).toFixed(3);
+  els.m.MAE.textContent = fmt(m.MAE);
+  els.m.RMSE.textContent = fmt(m.RMSE);
+  els.m.MedAE.textContent = fmt(m.MedAE);
+  els.m.R2.textContent = (m.R2 == null || Number.isNaN(m.R2)) ? '—' : Number(m.R2).toFixed(3);
+  els.m.MAE_L5.textContent = fmt(m.MAE_L5);
+  els.m.Skill_L5.textContent = (m.Skill_L5 == null) ? '—' : `${Number(m.Skill_L5).toFixed(1)}%`;
+  els.m.MAE_STD.textContent = fmt(m.MAE_STD);
+  els.m.Skill_STD.textContent = (m.Skill_STD == null) ? '—' : `${Number(m.Skill_STD).toFixed(1)}%`;
+}
 
 let players = [];
 let historyData = [];
@@ -95,7 +120,21 @@ async function refresh() {
   const pid = els.select.value;
   await Promise.all([loadNextGame(pid), loadHistory(pid)]);
   setStatus('');
+  try {
+    const mRes = await fetch(`./data/${pid}/metrics.json?_=${Date.now()}`);
+    if (mRes.ok) {
+      const mJson = await mRes.json();
+      setMetricsUI(mJson.metrics || mJson);
+      els.m.seasonTag.textContent = mJson.season || '2024–25';
+    } else {
+      setMetricsUI(null);
+    }
+  } catch(e){ setMetricsUI(null); }
 }
+
+els.m.csv.href = `./data/${pid}/predictions.csv`;
+els.m.imgPredActual.src = `./data/${pid}/plots/pred_vs_actual.png?_=${Date.now()}`;
+els.m.imgResiduals.src  = `./data/${pid}/plots/residuals_hist.png?_=${Date.now()}`;
 
 async function init() {
   await loadPlayers();

@@ -7,6 +7,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from pymongo import MongoClient, UpdateOne
+from pathlib import Path
+from shutil import copy2
+import json
+from datetime import datetime
 
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, RobustScaler
@@ -287,6 +291,82 @@ def show_coefs(pipe, feat_cols):
     for _, val, name in ranked[:12]:
         print(f"{name:>14s}: {val:+.3f}")
 
+def extract_coefs(pipe, feat_cols, top_k=12):
+    lr = pipe.named_steps.get("model")
+    if lr is None or not hasattr(lr, "coef_"):
+        return []
+    w = lr.coef_
+    ranked = sorted(zip(np.abs(w), w, feat_cols), reverse=True)[:top_k]
+    return [{"name": name, "weight": float(val)} for _, val, name in ranked]
+
+def export_static_payload(player_id, player_name, season, pred_df, metrics, coefs,
+                          csv_src_path, plot_pred_path, plot_resid_path,
+                          export_root_choices=("docs", "public")):
+    """
+    Writes the JSON + copies CSV/plots to:
+      <export_root>/data/<player_id>/
+    Picks 'docs' if it exists (GitHub Pages), else falls back to 'public'.
+    """
+    repo_root = Path(__file__).resolve().parents[1]
+    export_root = None
+    for opt in export_root_choices:
+        if (repo_root / opt).exists():
+            export_root = repo_root / opt
+            break
+    if export_root is None:
+        export_root = repo_root / "public"
+        export_root.mkdir(parents=True, exist_ok=True)
+
+    out_dir = export_root / "data" / player_id
+    plots_dir = out_dir / "plots"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    plots_dir.mkdir(parents=True, exist_ok=True)
+
+    # 1) history.json
+    series = []
+    for _, r in pred_df.sort_values("GAME_DATE").iterrows():
+        series.append({
+            "game_date": pd.to_datetime(r["GAME_DATE"]).strftime("%Y-%m-%d"),
+            "actual": float(r["PTS"]),
+            "predicted": float(r["PRED_PTS"]),
+        })
+    (out_dir / "history.json").write_text(json.dumps({"player_id": player_id, "series": series}, indent=2))
+
+    # 2) next_game.json – last row’s prediction + top 5 coefs (if any)
+    last = pred_df.sort_values("GAME_DATE").iloc[-1]
+    explanation = {c["name"]: c["weight"] for c in coefs[:5]} if coefs else None
+    (out_dir / "next_game.json").write_text(json.dumps({
+        "player_id": player_id,
+        "predicted_points": float(last["PRED_PTS"]),
+        "as_of": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        "explanation": explanation
+    }, indent=2))
+
+    # 3) metrics.json
+    payload = {
+        "player_id": player_id,
+        "player_name": player_name,
+        "model": "ElasticNet",
+        "season": season,
+        "metrics": metrics
+    }
+    (out_dir / "metrics.json").write_text(json.dumps(payload, indent=2))
+
+    # 4) CSV (copy or write)
+    if csv_src_path and Path(csv_src_path).exists():
+        copy2(csv_src_path, out_dir / "predictions.csv")
+    else:
+        pred_df.to_csv(out_dir / "predictions.csv", index=False)
+
+    # 5) Plots
+    try:
+        if plot_pred_path and Path(plot_pred_path).exists():
+            copy2(plot_pred_path, plots_dir / "pred_vs_actual.png")
+        if plot_resid_path and Path(plot_resid_path).exists():
+            copy2(plot_resid_path, plots_dir / "residuals_hist.png")
+    except Exception as e:
+        print(f"(copy plots) {e}")
+
 
 if __name__ == "__main__":
     # 1) Fetch raw data
@@ -410,8 +490,25 @@ if __name__ == "__main__":
     out.to_csv(csv_path, index=False)
     print(f"Saved CSV: {csv_path}")
 
+    # (re)save plots
     save_plots(out)
-    print("Saved plots: jokic_pred_vs_actual_2024_25.png, jokic_residuals_hist_2024_25.png")
+    plot_pred = "jokic_pred_vs_actual_2024_25.png"
+    plot_res  = "jokic_residuals_hist_2024_25.png"
+    print("Saved plots:", plot_pred + ",", plot_res)
+
+    # NEW: export for the static UI
+    coefs = extract_coefs(best_model, feat_cols)
+    export_static_payload(
+        player_id="jokic",
+        player_name=PLAYER_NAME,
+        season=TEST_SEASON,
+        pred_df=out,
+        metrics=metrics,
+        coefs=coefs,
+        csv_src_path=csv_path,
+        plot_pred_path=plot_pred,
+        plot_resid_path=plot_res,
+    )
 
     save_predictions_to_mongo(out)
     print("Done.")
