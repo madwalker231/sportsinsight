@@ -6,23 +6,32 @@ const els = {
   asOf: document.getElementById('asOf'),
   featureList: document.getElementById('featureList'),
   downloadCsvBtn: document.getElementById('downloadCsvBtn'),
-  MAE: document.getElementById('mMAE'),
-  RMSE: document.getElementById('mRMSE'),
-  MedAE: document.getElementById('mMedAE'),
-  R2: document.getElementById('mR2'),
-  MAE_L5: document.getElementById('mMAEL5'),
-  Skill_L5: document.getElementById('mSkillL5'),
-  MAE_STD: document.getElementById('mMAESTD'),
-  Skill_STD: document.getElementById('mSkillSTD'),
-  seasonTag: document.getElementById('seasonTag'),
-  csv: document.getElementById('downloadCsvLink'),
-  imgPredActual: document.getElementById('imgPredActual'),
-  imgResiduals: document.getElementById('imgResiduals')
+  // Metrics + assets grouped under m
+  m: {
+    MAE: document.getElementById('mMAE'),
+    RMSE: document.getElementById('mRMSE'),
+    MedAE: document.getElementById('mMedAE'),
+    R2: document.getElementById('mR2'),
+    MAE_L5: document.getElementById('mMAEL5'),
+    Skill_L5: document.getElementById('mSkillL5'),
+    MAE_STD: document.getElementById('mMAESTD'),
+    Skill_STD: document.getElementById('mSkillSTD'),
+    seasonTag: document.getElementById('seasonTag'),
+    csv: document.getElementById('downloadCsvLink'),
+    imgPredActual: document.getElementById('imgPredActual'),
+    imgResiduals: document.getElementById('imgResiduals'),
+  }
 };
 
-function setMetricUI(m) {
-  if (!m) return;
-  const fmt = v => (v == null || Number.isNaN(v)) ? '-' : Number(v).toFixed(3);
+function setMetricsUI(m) {
+  const fmt = v => (v == null || Number.isNaN(v)) ? '—' : Number(v).toFixed(3);
+  if (!m) {
+    // clear
+    els.m.MAE.textContent = els.m.RMSE.textContent = els.m.MedAE.textContent = els.m.R2.textContent =
+    els.m.MAE_L5.textContent = els.m.MAE_STD.textContent = '—';
+    els.m.Skill_L5.textContent = els.m.Skill_STD.textContent = '—';
+    return;
+  }
   els.m.MAE.textContent = fmt(m.MAE);
   els.m.RMSE.textContent = fmt(m.RMSE);
   els.m.MedAE.textContent = fmt(m.MedAE);
@@ -120,6 +129,8 @@ async function refresh() {
   const pid = els.select.value;
   await Promise.all([loadNextGame(pid), loadHistory(pid)]);
   setStatus('');
+
+  // metrics.json
   try {
     const mRes = await fetch(`./data/${pid}/metrics.json?_=${Date.now()}`);
     if (mRes.ok) {
@@ -130,11 +141,12 @@ async function refresh() {
       setMetricsUI(null);
     }
   } catch(e){ setMetricsUI(null); }
-}
 
-els.m.csv.href = `./data/${pid}/predictions.csv`;
-els.m.imgPredActual.src = `./data/${pid}/plots/pred_vs_actual.png?_=${Date.now()}`;
-els.m.imgResiduals.src  = `./data/${pid}/plots/residuals_hist.png?_=${Date.now()}`;
+  // CSV link + plots
+  els.m.csv.href = `./data/${pid}/predictions.csv`;
+  els.m.imgPredActual.src = `./data/${pid}/plots/pred_vs_actual.png?_=${Date.now()}`;
+  els.m.imgResiduals.src  = `./data/${pid}/plots/residuals_hist.png?_=${Date.now()}`;
+}
 
 async function init() {
   await loadPlayers();

@@ -13,54 +13,80 @@
   </header>
 
   <main>
-    <h2 class="welcome-message">Welcome to the SportsInsight web application. This site is still in a early beta stage. If you are here then you have been chosen to be a beta tester.
-      What is SportsInsight? SportsInsight is a end to end sports analytics pipeline that uses machine learning to make predictions about professional sports athletes, teams, 
-      and much more. SportsInsight aims to bridge the connection between the technology and sports industry. Right now SportsInsight is at a crossroads. This application could be 
-      used at an enterprise level by professional sports teams like the Dallas Maverick, Denver Broncos, New York Yankees, and many more. Or this application could be used by 
-      sports fans in a fantasy sports league, like fantasy basket ball or football. Thats where you come in as a user tester, to help the SportsInsight team determine the 
-      best course of action for this application. Your feedback will help shape the future of sports analytics in both the enterprise level and the fan level. Please explore and 
-      interact with the site as much as you can. When you feel like you have explored enough please go to the link at the bottom of the page and fill out a quick survey to 
-      provide the team with any and all feedback you have for us. 
-    </h2>
-    <section class="controls">
-      <label for="playerSelect">Player</label>
-      <select id="playerSelect"></select>
-      <button id="refreshBtn">Reload Data</button>
-      <span id="status"></span>
-    </section>
+  <!-- Intro / welcome -->
+  <section class="card">
+    <h2>Welcome</h2>
+    <h2 class="welcome-message">Welcome to the SportsInsight web application. This site is still in a early beta stage. If you are here then you have been chosen to be a beta tester. 
+      What is SportsInsight? SportsInsight is a end to end sports analytics pipeline that uses machine learning to make predictions about professional sports athletes, teams, and 
+      much more. SportsInsight aims to bridge the connection between the technology and sports industry. Right now SportsInsight is at a crossroads. This application could be used 
+      at an enterprise level by professional sports teams like the Dallas Maverick, Denver Broncos, New York Yankees, and many more. Or this application could be used by sports fans 
+      in a fantasy sports league, like fantasy basket ball or football. Thats where you come in as a user tester, to help the SportsInsight team determine the best course of action 
+      for this application. Your feedback will help shape the future of sports analytics in both the enterprise level and the fan level. Please explore and interact with the site as 
+      much as you can. When you feel like you have explored enough please go to the link at the bottom of the page and fill out a quick survey to provide the team with any and all 
+      feedback you have for us. </h2>
+  </section>
 
-    <section class="card">
-      <h2>Model Metrics — <span id="seasonTag">2024–25</span></h2>
-      <div class="metrics-grid">
-        <div><span>MAE</span><strong id="mMAE">—</strong></div>
-        <div><span>RMSE</span><strong id="mRMSE">—</strong></div>
-        <div><span>Median AE</span><strong id="mMedAE">—</strong></div>
-        <div><span>R²</span><strong id="mR2">—</strong></div>
-        <div><span>MAE (L5)</span><strong id="mMAEL5">—</strong></div>
-        <div><span>Skill vs L5</span><strong id="mSkillL5">—</strong></div>
-        <div><span>MAE (Season-to-date)</span><strong id="mMAESTD">—</strong></div>
-        <div><span>Skill vs Season-to-date</span><strong id="mSkillSTD">—</strong></div>
-      </div>
+  <!-- Controls -->
+  <section class="controls">
+    <label for="playerSelect">Player</label>
+    <select id="playerSelect"></select>
+    <button id="refreshBtn">Reload Data</button>
+    <span id="status"></span>
+  </section>
+
+  <!-- Prediction + Top Features (JS needs these IDs) -->
+  <section class="cards">
+    <div class="card">
+      <h2>Prediction</h2>
+      <div id="predictionValue" class="big-number">—</div>
+      <div id="asOf" class="subtle">As of: —</div>
+    </div>
+    <div class="card">
+      <h2>Top Features</h2>
+      <ul id="featureList" class="feature-list"></ul>
+    </div>
+  </section>
+
+  <!-- Chart (JS needs historyChart + downloadCsvBtn). Use chart-box wrapper to avoid stretching -->
+  <section class="card">
+    <h2>Recent Games — Predicted vs Actual</h2>
+    <div class="chart-box"><canvas id="historyChart"></canvas></div>
+    <div class="right"><button id="downloadCsvBtn">Download CSV</button></div>
+  </section>
+
+  <!-- Metrics -->
+  <section class="card">
+    <h2>Model Metrics — <span id="seasonTag">2024–25</span></h2>
+    <div class="metrics-grid">
+      <div><span>MAE</span><strong id="mMAE">—</strong></div>
+      <div><span>RMSE</span><strong id="mRMSE">—</strong></div>
+      <div><span>Median AE</span><strong id="mMedAE">—</strong></div>
+      <div><span>R²</span><strong id="mR2">—</strong></div>
+      <div><span>MAE (L5)</span><strong id="mMAEL5">—</strong></div>
+      <div><span>Skill vs L5</span><strong id="mSkillL5">—</strong></div>
+      <div><span>MAE (Season-to-date)</span><strong id="mMAESTD">—</strong></div>
+      <div><span>Skill vs Season-to-date</span><strong id="mSkillSTD">—</strong></div>
+    </div>
     <div class="right">
       <a id="downloadCsvLink" href="#" download>Download predictions.csv</a>
     </div>
   </section>
 
-
+  <!-- Plots -->
   <section class="card">
     <h2>Analysis Plots</h2>
     <div class="img-row">
-        <figure>
-          <img id="imgPredActual" alt="Predicted vs Actual"/>
-          <figcaption>Predicted vs Actual</figcaption>
-        </figure>
-        <figure>
-          <img id="imgResiduals" alt="Residuals histogram"/>
-          <figcaption>Residuals (Actual − Predicted)</figcaption>
-        </figure>
-      </div>
-    </section>
-  </main>
+      <figure>
+        <img id="imgPredActual" alt="Predicted vs Actual"/>
+        <figcaption>Predicted vs Actual</figcaption>
+      </figure>
+      <figure>
+        <img id="imgResiduals" alt="Residuals histogram"/>
+        <figcaption>Residuals (Actual − Predicted)</figcaption>
+      </figure>
+    </div>
+  </section>
+</main>
 
   <footer>
     Static MVP | Please provide Feedback at the following Google Survey: 

@@ -128,13 +128,9 @@ h2
     text-align:right; 
 }
 
-.chart-box
-{
-    position: relative;
-    height: 400px;
-    max-height: 60vh;
-    width: 100%;
-}
+.chart-box { position: relative; height: 320px; max-height: 60vh; width: 100%; }
+canvas { display: block; }
+.metrics-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
 
 canvas
 {
@@ -162,12 +158,6 @@ footer a:hover
     text-decoration: underline;
 }
 
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  margin: 8px 0 6px;
-}
 .metrics-grid div {
   background: #0f1522;
   border: 1px solid #2a3242;

@@ -35,6 +35,13 @@ except ImportError:
         team_def_rating_map_cached,
     )
 
+def _float_or_none(x):
+    try:
+        f = float(x)
+        return f if np.isfinite(f) else None
+    except Exception:
+        return None
+
 set_all_seeds(42)
 
 PLAYER_ID   = 203999
@@ -234,7 +241,6 @@ def evaluate_and_report(y_true, y_pred, y_l5, y_season_td):
                 Skill_L5=skill_l5, Skill_STD=skill_std)
 
 def save_plots(pred_df: pd.DataFrame):
-
     # Pred vs Actual
     plt.figure(figsize=(10,5))
     plt.plot(pd.to_datetime(pred_df["GAME_DATE"]), pred_df["PTS"], marker="o", label="Actual PTS")
@@ -246,6 +252,7 @@ def save_plots(pred_df: pd.DataFrame):
     plt.tight_layout()
     plt.legend()
     plt.savefig("jokic_pred_vs_actual_2024_25.png", dpi=140)
+    plt.close()
 
     # Residuals histogram
     plt.figure(figsize=(6,4))
@@ -255,6 +262,7 @@ def save_plots(pred_df: pd.DataFrame):
     plt.xlabel("Points")
     plt.tight_layout()
     plt.savefig("jokic_residuals_hist_2024_25.png", dpi=140)
+    plt.close()
 
 def save_predictions_to_mongo(pred_df: pd.DataFrame):
     try:
@@ -305,9 +313,21 @@ def export_static_payload(player_id, player_name, season, pred_df, metrics, coef
     """
     Writes the JSON + copies CSV/plots to:
       <export_root>/data/<player_id>/
-    Picks 'docs' if it exists (GitHub Pages), else falls back to 'public'.
+    Picks 'docs' if it exists (GitHub Pages), else 'public'. Creates dirs if missing.
     """
-    repo_root = Path(__file__).resolve().parents[1]
+    if pred_df is None or pred_df.empty:
+        print("[export] pred_df is empty; nothing to export.")
+        return
+
+    # --- find a sensible repo root (docs/public/.git) ---
+    here = Path(__file__).resolve()
+    repo_root = here.parent  # fallback
+    for p in [here.parent, *here.parents]:
+        if (p / "docs").exists() or (p / "public").exists() or (p / ".git").exists():
+            repo_root = p
+            break
+
+    # --- choose export root ---
     export_root = None
     for opt in export_root_choices:
         if (repo_root / opt).exists():
@@ -317,48 +337,55 @@ def export_static_payload(player_id, player_name, season, pred_df, metrics, coef
         export_root = repo_root / "public"
         export_root.mkdir(parents=True, exist_ok=True)
 
+    # --- define and create output dirs (THIS was missing) ---
     out_dir = export_root / "data" / player_id
     plots_dir = out_dir / "plots"
     out_dir.mkdir(parents=True, exist_ok=True)
     plots_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1) history.json
+    # --- history.json ---
     series = []
     for _, r in pred_df.sort_values("GAME_DATE").iterrows():
         series.append({
             "game_date": pd.to_datetime(r["GAME_DATE"]).strftime("%Y-%m-%d"),
-            "actual": float(r["PTS"]),
-            "predicted": float(r["PRED_PTS"]),
+            "actual": _float_or_none(r["PTS"]),
+            "predicted": _float_or_none(r["PRED_PTS"]),
         })
-    (out_dir / "history.json").write_text(json.dumps({"player_id": player_id, "series": series}, indent=2))
+    (out_dir / "history.json").write_text(
+        json.dumps({"player_id": player_id, "series": series}, indent=2, allow_nan=False)
+    )
 
-    # 2) next_game.json – last row’s prediction + top 5 coefs (if any)
+    # --- next_game.json (last row + top coefficients) ---
     last = pred_df.sort_values("GAME_DATE").iloc[-1]
-    explanation = {c["name"]: c["weight"] for c in coefs[:5]} if coefs else None
-    (out_dir / "next_game.json").write_text(json.dumps({
-        "player_id": player_id,
-        "predicted_points": float(last["PRED_PTS"]),
-        "as_of": datetime.utcnow().isoformat(timespec="seconds") + "Z",
-        "explanation": explanation
-    }, indent=2))
+    explanation = ({c["name"]: _float_or_none(c["weight"]) for c in coefs[:5]}
+                   if coefs else None)
+    (out_dir / "next_game.json").write_text(
+        json.dumps({
+            "player_id": player_id,
+            "predicted_points": _float_or_none(last["PRED_PTS"]),
+            "as_of": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            "explanation": explanation
+        }, indent=2, allow_nan=False)
+    )
 
-    # 3) metrics.json
+    # --- metrics.json (clean NaN/inf) ---
+    metrics_clean = {k: _float_or_none(v) for k, v in (metrics or {}).items()}
     payload = {
         "player_id": player_id,
         "player_name": player_name,
         "model": "ElasticNet",
         "season": season,
-        "metrics": metrics
+        "metrics": metrics_clean
     }
-    (out_dir / "metrics.json").write_text(json.dumps(payload, indent=2))
+    (out_dir / "metrics.json").write_text(json.dumps(payload, indent=2, allow_nan=False))
 
-    # 4) CSV (copy or write)
+    # --- predictions.csv ---
     if csv_src_path and Path(csv_src_path).exists():
         copy2(csv_src_path, out_dir / "predictions.csv")
     else:
         pred_df.to_csv(out_dir / "predictions.csv", index=False)
 
-    # 5) Plots
+    # --- plots ---
     try:
         if plot_pred_path and Path(plot_pred_path).exists():
             copy2(plot_pred_path, plots_dir / "pred_vs_actual.png")
@@ -366,6 +393,8 @@ def export_static_payload(player_id, player_name, season, pred_df, metrics, coef
             copy2(plot_resid_path, plots_dir / "residuals_hist.png")
     except Exception as e:
         print(f"(copy plots) {e}")
+
+    print(f"Exported web payload to: {out_dir}")
 
 
 if __name__ == "__main__":
