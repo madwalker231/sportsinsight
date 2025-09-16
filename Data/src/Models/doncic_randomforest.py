@@ -7,6 +7,11 @@ import matplotlib.pyplot as plt
 
 from pymongo import MongoClient, UpdateOne
 
+from pathlib import Path
+from shutil import copy2
+import json
+from datetime import datetime
+
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
@@ -238,6 +243,94 @@ def save_predictions_to_mongo(pred_df: pd.DataFrame):
     except Exception as e:
         print(f"(Mongo warning) Could not save predictions: {e}")
 
+def _safe_float(x):
+    try:
+        x = float(x)
+        return x if np.isfinite(x) else None
+    except Exception:
+        return None
+
+def export_static_for_pages(player_id, player_name, season,
+                            pred_df, metrics,
+                            csv_src_path, plot_pred_path=None, plot_resid_path=None,
+                            export_root_choices=("docs", "public")):
+    """
+    Write the minimal payload the static UI needs:
+
+      <export_root>/data/<player_id>/
+        - history.json
+        - next_game.json
+        - metrics.json
+        - predictions.csv
+        - plots/pred_vs_actual.png  (optional)
+        - plots/residuals_hist.png  (optional)
+
+    Picks 'docs' if present (GitHub Pages), else 'public'.
+    """
+
+    env_docs = os.getenv("DOCS_ROOT")  # optional override
+    if env_docs:
+        export_root = Path(env_docs).expanduser().resolve()
+        export_root.mkdir(parents=True, exist_ok=True)
+    else:
+        # script lives under .../sportsinsight/Data/src/Models/...
+        # go up 3 -> .../sportsinsight/, then use /docs as the site root
+        export_root = Path(__file__).resolve().parents[3] / "docs"
+        export_root.mkdir(parents=True, exist_ok=True)
+
+    out_dir   = export_root / "data" / player_id
+    plots_dir = out_dir / "plots"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    plots_dir.mkdir(parents=True, exist_ok=True)
+
+    # ---- metrics.json ----
+    metrics_clean = {k: _safe_float(v) for k, v in (metrics or {}).items()}
+    (out_dir / "metrics.json").write_text(json.dumps({
+        "player_id": player_id,
+        "player_name": player_name,
+        "model": "RandomForest",
+        "season": season,
+        "metrics": metrics_clean
+    }, indent=2, allow_nan=False))
+
+    # ---- history.json ----
+    series = []
+    for _, r in pred_df.sort_values("GAME_DATE").iterrows():
+        series.append({
+            "game_date": pd.to_datetime(r["GAME_DATE"]).strftime("%Y-%m-%d"),
+            "actual": _safe_float(r["PTS"]),
+            "predicted": _safe_float(r["PRED_PTS"]),
+        })
+    (out_dir / "history.json").write_text(json.dumps({
+        "player_id": player_id,
+        "series": series
+    }, indent=2, allow_nan=False))
+
+    # ---- next_game.json (use last row’s prediction) ----
+    last = pred_df.sort_values("GAME_DATE").iloc[-1]
+    (out_dir / "next_game.json").write_text(json.dumps({
+        "player_id": player_id,
+        "predicted_points": _safe_float(last["PRED_PTS"]),
+        "as_of": datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    }, indent=2, allow_nan=False))
+
+    # ---- CSV ----
+    if csv_src_path and Path(csv_src_path).exists():
+        copy2(csv_src_path, out_dir / "predictions.csv")
+    else:
+        pred_df.to_csv(out_dir / "predictions.csv", index=False)
+
+    # ---- plots (optional; safe if you removed them from the UI) ----
+    try:
+        if plot_pred_path and Path(plot_pred_path).exists():
+            copy2(plot_pred_path, plots_dir / "pred_vs_actual.png")
+        if plot_resid_path and Path(plot_resid_path).exists():
+            copy2(plot_resid_path, plots_dir / "residuals_hist.png")
+    except Exception as e:
+        print(f"(copy plots) {e}")
+
+    print(f"[publish] wrote static files to {out_dir}")
+
 if __name__ == "__main__":
     # 1) Fetch raw data (expect 'no games' before NBA debut 2018–19)
     all_seasons = TRAIN_SEASONS + [TEST_SEASON]
@@ -407,6 +500,17 @@ if __name__ == "__main__":
 
     save_plots(out)
     print("Saved plots: doncic_pred_vs_actual_2024_25.png, doncic_residuals_hist_2024_25.png")
+
+    export_static_for_pages(
+        player_id="doncic",
+        player_name=PLAYER_NAME,
+        season=TEST_SEASON,
+        pred_df=out,
+        metrics=metrics,
+        csv_src_path="doncic_randomforest_2024_25_predictions.csv",
+        plot_pred_path="doncic_pred_vs_actual_2024_25.png",
+        plot_resid_path="doncic_residuals_hist_2024_25.png",
+    )
 
     save_predictions_to_mongo(out)
     print("Done.")

@@ -63,7 +63,8 @@ async function loadNextGame(pid) {
   const json = await res.json();
 
   // still populate the Prediction card
-  els.predictionValue.textContent = (json.predicted_points ?? '—');
+  const to1 = v => (v == null || Number.isNaN(Number(v))) ? '—' : Number(v).toFixed(1);
+  els.predictionValue.textContent = to1(json.predicted_points);
   els.asOf.textContent = `As of: ${json.as_of || '—'}`;
 
   // NEW: only touch the (now-removed) list if it exists
