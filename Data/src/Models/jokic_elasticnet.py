@@ -7,6 +7,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from pymongo import MongoClient, UpdateOne
+from gridfs import GridFS
+from datetime import datetime
+
+# New code added here
+from pathlib import Path
+from shutil import copy2
+import json
 
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, RobustScaler
@@ -41,7 +48,7 @@ SLEEP_SEC     = 0.7
 
 load_dotenv()
 MONGO_URI = os.getenv("MONGO_URI", "")
-DB_NAME   = "sportsinsight"
+DB_NAME   = os.getenv("DB_NAME", "")
 PRED_COLL = "predictions_2024_25"
 
 # modest, pre-declared HP grid (no optimization theater)
@@ -287,6 +294,91 @@ def show_coefs(pipe, feat_cols):
     for _, val, name in ranked[:12]:
         print(f"{name:>14s}: {val:+.3f}")
 
+# New code added here
+
+def _num(x):
+    """Return a JSON/Mongo safe float or None."""
+    try:
+        x = float(x)
+        return x if np.isfinite(x) else None
+    except Exception:
+        return None
+
+def upload_csv_and_run_record(csv_path: str,
+                              metrics: dict,
+                              best_params: dict,
+                              calibration: dict,
+                              feature_cols: list,
+                              row_count: int,
+                              model_name: str = "ElasticNet"):
+    """
+    Stores the CSV in GridFS and inserts one 'model_runs' document that references it.
+    Does nothing if MONGO_URI is empty.
+    """
+    if not MONGO_URI:
+        print("(Mongo) MONGO_URI not set; skipping CSV + run record upload.")
+        return None
+
+    try:
+        client = MongoClient(MONGO_URI)
+        db = client[DB_NAME]
+
+        # 1) Put CSV into GridFS
+        fs = GridFS(db)  # default bucket 'fs'
+        with open(csv_path, "rb") as f:
+            csv_file_id = fs.put(
+                f,
+                filename=os.path.basename(csv_path),
+                content_type="text/csv",
+                player_id=PLAYER_ID,
+                player_name=PLAYER_NAME,
+                season=TEST_SEASON,
+                model=model_name,
+                pred_target="PTS",
+            )
+
+        # 2) Insert one run record with metrics + pointers
+        hp = {}
+        if isinstance(best_params, dict):
+            # GridSearchCV best_params contains an estimator object under 'model' — skip that
+            if "model__alpha" in best_params:   hp["alpha"] = _num(best_params["model__alpha"])
+            if "model__l1_ratio" in best_params: hp["l1_ratio"] = _num(best_params["model__l1_ratio"])
+
+        run_doc = {
+            "player_id":     PLAYER_ID,
+            "player_name":   PLAYER_NAME,
+            "season":        TEST_SEASON,
+            "model":         model_name,
+            "pred_target":   "PTS",
+            "created_at":    datetime.utcnow(),
+            "csv_file_id":   csv_file_id,
+            "csv_filename":  os.path.basename(csv_path),
+            "row_count":     int(row_count),
+            "features":      list(feature_cols),
+            "hp":            hp,
+            "calibration": {
+                "a": _num(calibration.get("a")) if calibration else None,
+                "b": _num(calibration.get("b")) if calibration else None,
+                "corr": _num(calibration.get("corr")) if calibration else None,
+                "desc": calibration.get("desc") if calibration else None,
+            },
+            "metrics": {k: _num(v) for k, v in (metrics or {}).items()},
+        }
+
+        run_id = db["model_runs"].insert_one(run_doc).inserted_id
+        print(f"(Mongo) CSV stored file_id={csv_file_id}; run record _id={run_id}")
+        return {"run_id": run_id, "csv_file_id": csv_file_id}
+    except Exception as e:
+        print(f"(Mongo warning) upload_csv_and_run_record failed: {e}")
+        return None
+
+# New code added here
+def _safe_float(x):
+    try:
+        x = float(x)
+        return x if np.isfinite(x) else None
+    except Exception:
+        return None
 
 if __name__ == "__main__":
     # 1) Fetch raw data
@@ -414,4 +506,54 @@ if __name__ == "__main__":
     print("Saved plots: jokic_pred_vs_actual_2024_25.png, jokic_residuals_hist_2024_25.png")
 
     save_predictions_to_mongo(out)
+
+    # New code added here
+
+    export_root = Path(__file__).resolve().parents[3] / "docs"
+    out_dir    = export_root / "data" / "jokic"
+    plots_dir  = out_dir / "plots"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    plots_dir.mkdir(parents=True, exist_ok=True)
+
+    # metrics.json
+    with open(out_dir / "metrics.json", "w") as f:
+        json.dump({
+            "player_id": PLAYER_ID,
+            "player_name": PLAYER_NAME,
+            "season": TEST_SEASON,
+            "model": "ElasticNet",
+            "metrics": {k: _safe_float(v) for k, v in (metrics or {}).items()}
+        }, f, indent=2)
+
+    # history.json (for the line chart)
+    series = []
+    for _, r in out.sort_values("GAME_DATE").iterrows():
+        series.append({
+            "game_date": pd.to_datetime(r["GAME_DATE"]).strftime("%Y-%m-%d"),
+            "actual": _safe_float(r["PTS"]),
+            "predicted": _safe_float(r["PRED_PTS"]),
+        })
+    with open(out_dir / "history.json", "w") as f:
+        json.dump({"player_id": "jokic", "series": series}, f, indent=2)
+
+    # copy CSV and plots to where the UI expects them
+    copy2(csv_path, out_dir / "predictions.csv")
+    copy2("jokic_pred_vs_actual_2024_25.png", plots_dir / "pred_vs_actual.png")
+    copy2("jokic_residuals_hist_2024_25.png",  plots_dir / "residuals_hist.png")
+    print(f"[publish] wrote static files to {out_dir}")
+
+    # package calibration info for the run record
+    calib_info = {"a": a, "b": b, "corr": (corr if np.isfinite(corr) else None), "desc": calib_msg}
+
+    # push CSV + run metadata/metrics to Mongo (GridFS + model_runs)
+    upload_csv_and_run_record(
+        csv_path=csv_path,
+        metrics=metrics,
+        best_params=gs.best_params_,
+        calibration=calib_info,
+        feature_cols=feat_cols,
+        row_count=len(out),
+        model_name="ElasticNet",
+    )
+
     print("Done.")

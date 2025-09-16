@@ -176,6 +176,11 @@ footer a:hover
 .img-row img {
   display:block; width:100%; height:auto; border-radius:8px; border:1px solid #2a3242;
 }
+.top-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* prediction | metrics */
+  gap: 1rem;
+}
 @media (max-width:900px){
   .metrics-grid { grid-template-columns: repeat(2, 1fr); }
 }

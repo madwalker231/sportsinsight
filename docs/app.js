@@ -4,7 +4,7 @@ const els = {
   status: document.getElementById('status'),
   predictionValue: document.getElementById('predictionValue'),
   asOf: document.getElementById('asOf'),
-  featureList: document.getElementById('featureList'),
+  featureList: document.getElementById('featureList') || null,
   downloadCsvBtn: document.getElementById('downloadCsvBtn'),
   // Metrics + assets grouped under m
   m: {
@@ -18,8 +18,6 @@ const els = {
     Skill_STD: document.getElementById('mSkillSTD'),
     seasonTag: document.getElementById('seasonTag'),
     csv: document.getElementById('downloadCsvLink'),
-    imgPredActual: document.getElementById('imgPredActual'),
-    imgResiduals: document.getElementById('imgResiduals'),
   }
 };
 
@@ -63,21 +61,26 @@ function setStatus(msg) { els.status.textContent = msg || ''; }
 async function loadNextGame(pid) {
   const res = await fetch(`./data/${pid}/next_game.json?_=${Date.now()}`);
   const json = await res.json();
+
+  // still populate the Prediction card
   els.predictionValue.textContent = (json.predicted_points ?? '—');
   els.asOf.textContent = `As of: ${json.as_of || '—'}`;
 
-  els.featureList.innerHTML = '';
-  const expl = json.explanation || null;
-  if (expl) {
-    Object.entries(expl).forEach(([k,v]) => {
+  // NEW: only touch the (now-removed) list if it exists
+  if (els.featureList) {
+    els.featureList.innerHTML = '';
+    const expl = json.explanation || null;
+    if (expl) {
+      Object.entries(expl).forEach(([k, v]) => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span>${k}</span><span>${Number(v).toFixed(3)}</span>`;
+        els.featureList.appendChild(li);
+      });
+    } else {
       const li = document.createElement('li');
-      li.innerHTML = `<span>${k}</span><span>${Number(v).toFixed(3)}</span>`;
+      li.textContent = 'No feature explanation available.';
       els.featureList.appendChild(li);
-    });
-  } else {
-    const li = document.createElement('li');
-    li.textContent = 'No feature explanation available.';
-    els.featureList.appendChild(li);
+    }
   }
 }
 
