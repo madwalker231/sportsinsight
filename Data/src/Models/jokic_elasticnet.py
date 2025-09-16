@@ -11,6 +11,7 @@ from pathlib import Path
 from shutil import copy2
 import json
 from datetime import datetime
+import argparse
 
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, RobustScaler
@@ -309,7 +310,7 @@ def extract_coefs(pipe, feat_cols, top_k=12):
 
 def export_static_payload(player_id, player_name, season, pred_df, metrics, coefs,
                           csv_src_path, plot_pred_path, plot_resid_path,
-                          export_root_choices=("docs", "public")):
+                          export_root_choices=("docs",)):
     """
     Writes the JSON + copies CSV/plots to:
       <export_root>/data/<player_id>/
@@ -334,7 +335,7 @@ def export_static_payload(player_id, player_name, season, pred_df, metrics, coef
             export_root = repo_root / opt
             break
     if export_root is None:
-        export_root = repo_root / "public"
+        export_root = repo_root / "docs"
         export_root.mkdir(parents=True, exist_ok=True)
 
     # --- define and create output dirs (THIS was missing) ---
@@ -396,8 +397,36 @@ def export_static_payload(player_id, player_name, season, pred_df, metrics, coef
 
     print(f"Exported web payload to: {out_dir}")
 
+def export_only_from_csv(player_id, player_name, season,
+                         csv_path, plot_pred, plot_res):
+    df = pd.read_csv(csv_path, parse_dates=["GAME_DATE"])
+    # recompute metrics from CSV
+    y_true = df["PTS"].values
+    y_pred = df["PRED_PTS"].values
+    mae  = mean_absolute_error(y_true, y_pred)
+    rmse = mean_squared_error(y_true, y_pred, squared=False)
+    med  = np.median(np.abs(y_true - y_pred))
+    r2   = r2_score(y_true, y_pred) if len(np.unique(y_true)) > 1 else np.nan
+    mae_l5  = mean_absolute_error(y_true, df["L5_BASELINE"].values)
+    mae_std = mean_absolute_error(y_true, df["STD_BASELINE"].values)
+    metrics = {
+        "MAE": mae, "RMSE": rmse, "MedAE": med, "R2": r2,
+        "MAE_L5": mae_l5, "MAE_STD": mae_std,
+        "Skill_L5": 100.0*(1.0 - mae/mae_l5) if mae_l5>0 else np.nan,
+        "Skill_STD": 100.0*(1.0 - mae/mae_std) if mae_std>0 else np.nan
+    }
+    # no coefs in this mode
+    export_static_payload(
+        player_id=player_id, player_name=player_name, season=season,
+        pred_df=df, metrics=metrics, coefs=[],
+        csv_src_path=csv_path, plot_pred_path=plot_pred, plot_resid_path=plot_res
+    )
+
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--export-only", action="store_true")
+    args = parser.parse_args()
     # 1) Fetch raw data
     all_seasons = TRAIN_SEASONS + [TEST_SEASON]
     dfs = []
