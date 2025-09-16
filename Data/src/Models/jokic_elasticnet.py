@@ -7,11 +7,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from pymongo import MongoClient, UpdateOne
-from pathlib import Path
-from shutil import copy2
-import json
-from datetime import datetime
-import argparse
 
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, RobustScaler
@@ -35,13 +30,6 @@ except ImportError:
         fetch_gamelog_cached,
         team_def_rating_map_cached,
     )
-
-def _float_or_none(x):
-    try:
-        f = float(x)
-        return f if np.isfinite(f) else None
-    except Exception:
-        return None
 
 set_all_seeds(42)
 
@@ -242,6 +230,7 @@ def evaluate_and_report(y_true, y_pred, y_l5, y_season_td):
                 Skill_L5=skill_l5, Skill_STD=skill_std)
 
 def save_plots(pred_df: pd.DataFrame):
+
     # Pred vs Actual
     plt.figure(figsize=(10,5))
     plt.plot(pd.to_datetime(pred_df["GAME_DATE"]), pred_df["PTS"], marker="o", label="Actual PTS")
@@ -253,7 +242,6 @@ def save_plots(pred_df: pd.DataFrame):
     plt.tight_layout()
     plt.legend()
     plt.savefig("jokic_pred_vs_actual_2024_25.png", dpi=140)
-    plt.close()
 
     # Residuals histogram
     plt.figure(figsize=(6,4))
@@ -263,7 +251,6 @@ def save_plots(pred_df: pd.DataFrame):
     plt.xlabel("Points")
     plt.tight_layout()
     plt.savefig("jokic_residuals_hist_2024_25.png", dpi=140)
-    plt.close()
 
 def save_predictions_to_mongo(pred_df: pd.DataFrame):
     try:
@@ -300,133 +287,8 @@ def show_coefs(pipe, feat_cols):
     for _, val, name in ranked[:12]:
         print(f"{name:>14s}: {val:+.3f}")
 
-def extract_coefs(pipe, feat_cols, top_k=12):
-    lr = pipe.named_steps.get("model")
-    if lr is None or not hasattr(lr, "coef_"):
-        return []
-    w = lr.coef_
-    ranked = sorted(zip(np.abs(w), w, feat_cols), reverse=True)[:top_k]
-    return [{"name": name, "weight": float(val)} for _, val, name in ranked]
-
-def export_static_payload(player_id, player_name, season, pred_df, metrics, coefs,
-                          csv_src_path, plot_pred_path, plot_resid_path,
-                          export_root_choices=("docs",)):
-    """
-    Writes the JSON + copies CSV/plots to:
-      <export_root>/data/<player_id>/
-    Picks 'docs' if it exists (GitHub Pages), else 'public'. Creates dirs if missing.
-    """
-    if pred_df is None or pred_df.empty:
-        print("[export] pred_df is empty; nothing to export.")
-        return
-
-    # --- find a sensible repo root (docs/public/.git) ---
-    here = Path(__file__).resolve()
-    repo_root = here.parent  # fallback
-    for p in [here.parent, *here.parents]:
-        if (p / "docs").exists() or (p / "public").exists() or (p / ".git").exists():
-            repo_root = p
-            break
-
-    # --- choose export root ---
-    export_root = None
-    for opt in export_root_choices:
-        if (repo_root / opt).exists():
-            export_root = repo_root / opt
-            break
-    if export_root is None:
-        export_root = repo_root / "docs"
-        export_root.mkdir(parents=True, exist_ok=True)
-
-    # --- define and create output dirs (THIS was missing) ---
-    out_dir = export_root / "data" / player_id
-    plots_dir = out_dir / "plots"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    plots_dir.mkdir(parents=True, exist_ok=True)
-
-    # --- history.json ---
-    series = []
-    for _, r in pred_df.sort_values("GAME_DATE").iterrows():
-        series.append({
-            "game_date": pd.to_datetime(r["GAME_DATE"]).strftime("%Y-%m-%d"),
-            "actual": _float_or_none(r["PTS"]),
-            "predicted": _float_or_none(r["PRED_PTS"]),
-        })
-    (out_dir / "history.json").write_text(
-        json.dumps({"player_id": player_id, "series": series}, indent=2, allow_nan=False)
-    )
-
-    # --- next_game.json (last row + top coefficients) ---
-    last = pred_df.sort_values("GAME_DATE").iloc[-1]
-    explanation = ({c["name"]: _float_or_none(c["weight"]) for c in coefs[:5]}
-                   if coefs else None)
-    (out_dir / "next_game.json").write_text(
-        json.dumps({
-            "player_id": player_id,
-            "predicted_points": _float_or_none(last["PRED_PTS"]),
-            "as_of": datetime.utcnow().isoformat(timespec="seconds") + "Z",
-            "explanation": explanation
-        }, indent=2, allow_nan=False)
-    )
-
-    # --- metrics.json (clean NaN/inf) ---
-    metrics_clean = {k: _float_or_none(v) for k, v in (metrics or {}).items()}
-    payload = {
-        "player_id": player_id,
-        "player_name": player_name,
-        "model": "ElasticNet",
-        "season": season,
-        "metrics": metrics_clean
-    }
-    (out_dir / "metrics.json").write_text(json.dumps(payload, indent=2, allow_nan=False))
-
-    # --- predictions.csv ---
-    if csv_src_path and Path(csv_src_path).exists():
-        copy2(csv_src_path, out_dir / "predictions.csv")
-    else:
-        pred_df.to_csv(out_dir / "predictions.csv", index=False)
-
-    # --- plots ---
-    try:
-        if plot_pred_path and Path(plot_pred_path).exists():
-            copy2(plot_pred_path, plots_dir / "pred_vs_actual.png")
-        if plot_resid_path and Path(plot_resid_path).exists():
-            copy2(plot_resid_path, plots_dir / "residuals_hist.png")
-    except Exception as e:
-        print(f"(copy plots) {e}")
-
-    print(f"Exported web payload to: {out_dir}")
-
-def export_only_from_csv(player_id, player_name, season,
-                         csv_path, plot_pred, plot_res):
-    df = pd.read_csv(csv_path, parse_dates=["GAME_DATE"])
-    # recompute metrics from CSV
-    y_true = df["PTS"].values
-    y_pred = df["PRED_PTS"].values
-    mae  = mean_absolute_error(y_true, y_pred)
-    rmse = mean_squared_error(y_true, y_pred, squared=False)
-    med  = np.median(np.abs(y_true - y_pred))
-    r2   = r2_score(y_true, y_pred) if len(np.unique(y_true)) > 1 else np.nan
-    mae_l5  = mean_absolute_error(y_true, df["L5_BASELINE"].values)
-    mae_std = mean_absolute_error(y_true, df["STD_BASELINE"].values)
-    metrics = {
-        "MAE": mae, "RMSE": rmse, "MedAE": med, "R2": r2,
-        "MAE_L5": mae_l5, "MAE_STD": mae_std,
-        "Skill_L5": 100.0*(1.0 - mae/mae_l5) if mae_l5>0 else np.nan,
-        "Skill_STD": 100.0*(1.0 - mae/mae_std) if mae_std>0 else np.nan
-    }
-    # no coefs in this mode
-    export_static_payload(
-        player_id=player_id, player_name=player_name, season=season,
-        pred_df=df, metrics=metrics, coefs=[],
-        csv_src_path=csv_path, plot_pred_path=plot_pred, plot_resid_path=plot_res
-    )
-
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--export-only", action="store_true")
-    args = parser.parse_args()
     # 1) Fetch raw data
     all_seasons = TRAIN_SEASONS + [TEST_SEASON]
     dfs = []
@@ -548,25 +410,8 @@ if __name__ == "__main__":
     out.to_csv(csv_path, index=False)
     print(f"Saved CSV: {csv_path}")
 
-    # (re)save plots
     save_plots(out)
-    plot_pred = "jokic_pred_vs_actual_2024_25.png"
-    plot_res  = "jokic_residuals_hist_2024_25.png"
-    print("Saved plots:", plot_pred + ",", plot_res)
-
-    # NEW: export for the static UI
-    coefs = extract_coefs(best_model, feat_cols)
-    export_static_payload(
-        player_id="jokic",
-        player_name=PLAYER_NAME,
-        season=TEST_SEASON,
-        pred_df=out,
-        metrics=metrics,
-        coefs=coefs,
-        csv_src_path=csv_path,
-        plot_pred_path=plot_pred,
-        plot_resid_path=plot_res,
-    )
+    print("Saved plots: jokic_pred_vs_actual_2024_25.png, jokic_residuals_hist_2024_25.png")
 
     save_predictions_to_mongo(out)
     print("Done.")
