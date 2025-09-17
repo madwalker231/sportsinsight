@@ -1,0 +1,16 @@
+{
+  "player_id": "giannis",
+  "player_name": "Giannis Antetokounmpo",
+  "model": "ElasticNet",
+  "season": "2024-25",
+  "metrics": {
+    "MAE": 5.7245759952578155,
+    "RMSE": 7.57073585546328,
+    "MedAE": 4.604026367081438,
+    "R2": -0.0788319166415361,
+    "MAE_L5": 6.127272727272727,
+    "MAE_STD": 5.783923039787747,
+    "Skill_L5": 6.572201857810134,
+    "Skill_STD": 1.0260690559276475
+  }
+}

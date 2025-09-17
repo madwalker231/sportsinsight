@@ -1,11 +1,5 @@
 {
   "player_id": "embiid",
-  "predicted_points": 31.3,
-  "as_of": "2025-09-11T12:00:00Z",
-  "explanation": {
-    "min_rolling5": 0.61,
-    "pts_rolling5": 0.29,
-    "home": 0.05,
-    "opp_def_rating": -0.11
-  }
+  "predicted_points": 27.9,
+  "as_of": "2025-09-17T01:03:01Z"
 }

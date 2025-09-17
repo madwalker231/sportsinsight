@@ -2,54 +2,334 @@
   "player_id": "giannis",
   "series": [
     {
-      "game_date": "2025-08-22",
-      "actual": 26.1,
-      "predicted": 27.1
+      "game_date": "2024-10-25",
+      "actual": 38.0,
+      "predicted": 29.527850827679448
     },
     {
-      "game_date": "2025-08-24",
-      "actual": 29.6,
-      "predicted": 28.6
+      "game_date": "2024-10-27",
+      "actual": 22.0,
+      "predicted": 32.60266450422442
     },
     {
-      "game_date": "2025-08-26",
-      "actual": 26.6,
-      "predicted": 27.6
+      "game_date": "2024-10-28",
+      "actual": 30.0,
+      "predicted": 31.11039426710282
     },
     {
-      "game_date": "2025-08-28",
-      "actual": 28.1,
-      "predicted": 29.1
+      "game_date": "2024-10-31",
+      "actual": 37.0,
+      "predicted": 30.682714640814687
     },
     {
-      "game_date": "2025-08-30",
-      "actual": 29.1,
-      "predicted": 28.1
+      "game_date": "2024-11-02",
+      "actual": 34.0,
+      "predicted": 29.26562319258266
     },
     {
-      "game_date": "2025-09-01",
-      "actual": 26.1,
-      "predicted": 27.1
+      "game_date": "2024-11-07",
+      "actual": 31.0,
+      "predicted": 32.19348529124022
     },
     {
-      "game_date": "2025-09-03",
-      "actual": 27.6,
-      "predicted": 28.6
+      "game_date": "2024-11-08",
+      "actual": 24.0,
+      "predicted": 31.802969479473365
     },
     {
-      "game_date": "2025-09-05",
-      "actual": 28.6,
-      "predicted": 27.6
+      "game_date": "2024-11-10",
+      "actual": 43.0,
+      "predicted": 31.16942443867007
     },
     {
-      "game_date": "2025-09-07",
-      "actual": 28.1,
-      "predicted": 29.1
+      "game_date": "2024-11-12",
+      "actual": 23.0,
+      "predicted": 32.79443876000974
     },
     {
-      "game_date": "2025-09-09",
-      "actual": 27.1,
-      "predicted": 28.1
+      "game_date": "2024-11-13",
+      "actual": 59.0,
+      "predicted": 30.881179407052354
+    },
+    {
+      "game_date": "2024-11-16",
+      "actual": 22.0,
+      "predicted": 30.917033195096202
+    },
+    {
+      "game_date": "2024-11-18",
+      "actual": 20.0,
+      "predicted": 27.779468871402006
+    },
+    {
+      "game_date": "2024-11-20",
+      "actual": 41.0,
+      "predicted": 29.756464030434902
+    },
+    {
+      "game_date": "2024-11-22",
+      "actual": 37.0,
+      "predicted": 28.77511438662639
+    },
+    {
+      "game_date": "2024-11-23",
+      "actual": 32.0,
+      "predicted": 30.2353413331392
+    },
+    {
+      "game_date": "2024-11-30",
+      "actual": 42.0,
+      "predicted": 30.935439793778354
+    },
+    {
+      "game_date": "2024-12-03",
+      "actual": 28.0,
+      "predicted": 31.48438620709391
+    },
+    {
+      "game_date": "2024-12-04",
+      "actual": 31.0,
+      "predicted": 31.459526973432933
+    },
+    {
+      "game_date": "2024-12-06",
+      "actual": 30.0,
+      "predicted": 33.01777059525344
+    },
+    {
+      "game_date": "2024-12-08",
+      "actual": 34.0,
+      "predicted": 33.63554651049832
+    },
+    {
+      "game_date": "2024-12-10",
+      "actual": 37.0,
+      "predicted": 30.218167219968066
+    },
+    {
+      "game_date": "2024-12-14",
+      "actual": 32.0,
+      "predicted": 31.010123522471563
+    },
+    {
+      "game_date": "2024-12-20",
+      "actual": 33.0,
+      "predicted": 29.08407888752842
+    },
+    {
+      "game_date": "2024-12-31",
+      "actual": 30.0,
+      "predicted": 28.10270448043531
+    },
+    {
+      "game_date": "2025-01-02",
+      "actual": 27.0,
+      "predicted": 31.60951166543922
+    },
+    {
+      "game_date": "2025-01-04",
+      "actual": 31.0,
+      "predicted": 30.513847053698978
+    },
+    {
+      "game_date": "2025-01-06",
+      "actual": 11.0,
+      "predicted": 31.337312412440237
+    },
+    {
+      "game_date": "2025-01-08",
+      "actual": 25.0,
+      "predicted": 31.995626730316445
+    },
+    {
+      "game_date": "2025-01-10",
+      "actual": 41.0,
+      "predicted": 28.487071537606894
+    },
+    {
+      "game_date": "2025-01-12",
+      "actual": 24.0,
+      "predicted": 30.104285288653873
+    },
+    {
+      "game_date": "2025-01-14",
+      "actual": 33.0,
+      "predicted": 31.465942143240685
+    },
+    {
+      "game_date": "2025-01-15",
+      "actual": 26.0,
+      "predicted": 27.87154142819822
+    },
+    {
+      "game_date": "2025-01-17",
+      "actual": 35.0,
+      "predicted": 30.56019058571609
+    },
+    {
+      "game_date": "2025-01-19",
+      "actual": 34.0,
+      "predicted": 32.54344021673442
+    },
+    {
+      "game_date": "2025-01-23",
+      "actual": 25.0,
+      "predicted": 29.345283871262918
+    },
+    {
+      "game_date": "2025-01-25",
+      "actual": 36.0,
+      "predicted": 29.73397479420108
+    },
+    {
+      "game_date": "2025-01-27",
+      "actual": 35.0,
+      "predicted": 36.076062505370224
+    },
+    {
+      "game_date": "2025-01-28",
+      "actual": 39.0,
+      "predicted": 32.26943993443862
+    },
+    {
+      "game_date": "2025-01-31",
+      "actual": 35.0,
+      "predicted": 32.75055534757443
+    },
+    {
+      "game_date": "2025-02-02",
+      "actual": 30.0,
+      "predicted": 31.23319968179645
+    },
+    {
+      "game_date": "2025-02-20",
+      "actual": 23.0,
+      "predicted": 28.571388618149033
+    },
+    {
+      "game_date": "2025-02-21",
+      "actual": 18.0,
+      "predicted": 33.98341423664665
+    },
+    {
+      "game_date": "2025-02-23",
+      "actual": 23.0,
+      "predicted": 30.981522514600556
+    },
+    {
+      "game_date": "2025-02-25",
+      "actual": 27.0,
+      "predicted": 29.046662813533874
+    },
+    {
+      "game_date": "2025-02-27",
+      "actual": 28.0,
+      "predicted": 31.596957340851738
+    },
+    {
+      "game_date": "2025-03-01",
+      "actual": 29.0,
+      "predicted": 34.70358023191089
+    },
+    {
+      "game_date": "2025-03-04",
+      "actual": 26.0,
+      "predicted": 33.97894169832596
+    },
+    {
+      "game_date": "2025-03-05",
+      "actual": 32.0,
+      "predicted": 30.973730829920918
+    },
+    {
+      "game_date": "2025-03-08",
+      "actual": 37.0,
+      "predicted": 30.32208762860645
+    },
+    {
+      "game_date": "2025-03-09",
+      "actual": 30.0,
+      "predicted": 30.959569830358046
+    },
+    {
+      "game_date": "2025-03-11",
+      "actual": 19.0,
+      "predicted": 32.75284373831062
+    },
+    {
+      "game_date": "2025-03-13",
+      "actual": 24.0,
+      "predicted": 31.74199600751674
+    },
+    {
+      "game_date": "2025-03-15",
+      "actual": 34.0,
+      "predicted": 32.417913455976354
+    },
+    {
+      "game_date": "2025-03-16",
+      "actual": 21.0,
+      "predicted": 29.872022452396514
+    },
+    {
+      "game_date": "2025-03-18",
+      "actual": 20.0,
+      "predicted": 29.78303772409204
+    },
+    {
+      "game_date": "2025-03-20",
+      "actual": 28.0,
+      "predicted": 32.10750132221448
+    },
+    {
+      "game_date": "2025-03-22",
+      "actual": 32.0,
+      "predicted": 33.92413650024268
+    },
+    {
+      "game_date": "2025-03-24",
+      "actual": 31.0,
+      "predicted": 35.433611848926404
+    },
+    {
+      "game_date": "2025-03-28",
+      "actual": 30.0,
+      "predicted": 28.47073625179088
+    },
+    {
+      "game_date": "2025-03-30",
+      "actual": 31.0,
+      "predicted": 28.678408521292024
+    },
+    {
+      "game_date": "2025-04-01",
+      "actual": 37.0,
+      "predicted": 32.07196216530614
+    },
+    {
+      "game_date": "2025-04-03",
+      "actual": 35.0,
+      "predicted": 32.31955537078677
+    },
+    {
+      "game_date": "2025-04-05",
+      "actual": 36.0,
+      "predicted": 30.498327214880806
+    },
+    {
+      "game_date": "2025-04-08",
+      "actual": 23.0,
+      "predicted": 26.891439942320968
+    },
+    {
+      "game_date": "2025-04-10",
+      "actual": 28.0,
+      "predicted": 32.598541068723655
+    },
+    {
+      "game_date": "2025-04-11",
+      "actual": 32.0,
+      "predicted": 32.51684179353964
     }
   ]
 }

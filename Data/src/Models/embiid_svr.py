@@ -7,6 +7,12 @@ import matplotlib.pyplot as plt
 
 from pymongo import MongoClient, UpdateOne
 
+from gridfs import GridFS
+from pathlib import Path
+from shutil import copy2
+import json
+from datetime import datetime 
+
 from sklearn.svm import SVR
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -230,6 +236,169 @@ def save_predictions_to_mongo(pred_df: pd.DataFrame):
     except Exception as e:
         print(f"(Mongo warning) Could not save predictions: {e}")
 
+def _safe_float(x):
+    try:
+        x = float(x)
+        return x if np.isfinite(x) else None
+    except Exception:
+        return None
+
+def _num(x):
+    try:
+        v = float(x)
+        return v if np.isfinite(v) else None
+    except Exception:
+        return None
+
+def upload_csv_and_run_record(csv_path: str,
+                              metrics: dict,
+                              best_params: dict,
+                              calibration: dict,
+                              feature_cols: list,
+                              row_count: int,
+                              model_name: str = "ElasticNet"):
+    """Store CSV in GridFS and insert one model_runs document (skip if no MONGO_URI)."""
+    if not MONGO_URI:
+        print("(Mongo) MONGO_URI not set; skipping CSV + run record upload.")
+        return None
+    try:
+        client = MongoClient(MONGO_URI)
+        db = client[DB_NAME]
+
+        # 1) CSV → GridFS
+        fs = GridFS(db)
+        with open(csv_path, "rb") as f:
+            csv_file_id = fs.put(
+                f,
+                filename=os.path.basename(csv_path),
+                content_type="text/csv",
+                player_id=PLAYER_ID,
+                player_name=PLAYER_NAME,
+                season=TEST_SEASON,
+                model=model_name,
+                pred_target="PTS",
+            )
+
+        # 2) model_runs doc
+        hp = {}
+        if isinstance(best_params, dict):
+            # capture SVR keys (handles Pipeline "model__*" or plain)
+            for k in ("model__C","model__epsilon","model__gamma","C","epsilon","gamma"):
+                if k in best_params:
+                    hp[k.split("__")[-1]] = _num(best_params[k])
+
+        run_doc = {
+            "player_id":     PLAYER_ID,
+            "player_name":   PLAYER_NAME,
+            "season":        TEST_SEASON,
+            "model":         model_name,
+            "pred_target":   "PTS",
+            "created_at":    datetime.utcnow(),
+            "csv_file_id":   csv_file_id,
+            "csv_filename":  os.path.basename(csv_path),
+            "row_count":     int(row_count),
+            "features":      list(feature_cols),
+            "hp":            hp,
+            "calibration": {
+                "a": _num((calibration or {}).get("a")),
+                "b": _num((calibration or {}).get("b")),
+                "corr": _num((calibration or {}).get("corr")),
+                "desc": (calibration or {}).get("desc"),
+            },
+            "metrics": {k: _num(v) for k, v in (metrics or {}).items()},
+        }
+        run_id = db["model_runs"].insert_one(run_doc).inserted_id
+        print(f"(Mongo) CSV stored; run record _id={run_id}")
+        return {"run_id": run_id, "csv_file_id": csv_file_id}
+    except Exception as e:
+        print(f"(Mongo warning) upload_csv_and_run_record failed: {e}")
+        return None
+
+def export_static_for_pages(player_id, player_name, season,
+                            pred_df, metrics,
+                            csv_src_path, plot_pred_path=None, plot_resid_path=None,
+                            export_root_choices=("docs", "public")):
+    """
+    Write minimal payload for the static UI:
+
+      <export_root>/data/<player_id>/
+        metrics.json
+        history.json
+        next_game.json
+        predictions.csv
+        plots/pred_vs_actual.png  (optional)
+        plots/residuals_hist.png  (optional)
+
+    Chooses 'docs' if present (GitHub Pages), else 'public'. Searches upward for repo root.
+    """
+    if pred_df is None or pred_df.empty:
+        print("[publish] pred_df empty; nothing to write.")
+        return
+
+    # --- find repo root (look upward for docs/public/.git) ---
+    env_docs = os.getenv("DOCS_ROOT")  # optional override
+    if env_docs:
+        export_root = Path(env_docs).expanduser().resolve()
+        export_root.mkdir(parents=True, exist_ok=True)
+    else:
+        # script lives under .../sportsinsight/Data/src/Models/...
+        # go up 3 -> .../sportsinsight/, then use /docs as the site root
+        export_root = Path(__file__).resolve().parents[3] / "docs"
+        export_root.mkdir(parents=True, exist_ok=True)
+
+    out_dir   = export_root / "data" / player_id
+    plots_dir = out_dir / "plots"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    plots_dir.mkdir(parents=True, exist_ok=True)
+
+    # metrics.json
+    metrics_clean = {k: _safe_float(v) for k, v in (metrics or {}).items()}
+    (out_dir / "metrics.json").write_text(json.dumps({
+        "player_id": player_id,
+        "player_name": player_name,
+        "model": "ElasticNet",
+        "season": season,
+        "metrics": metrics_clean
+    }, indent=2, allow_nan=False))
+
+    # history.json
+    series = []
+    for _, r in pred_df.sort_values("GAME_DATE").iterrows():
+        series.append({
+            "game_date": pd.to_datetime(r["GAME_DATE"]).strftime("%Y-%m-%d"),
+            "actual": _safe_float(r["PTS"]),
+            "predicted": _safe_float(r["PRED_PTS"]),
+        })
+    (out_dir / "history.json").write_text(json.dumps({
+        "player_id": player_id,
+        "series": series
+    }, indent=2, allow_nan=False))
+
+    # next_game.json (show one decimal for the UI)
+    last = pred_df.sort_values("GAME_DATE").iloc[-1]
+    (out_dir / "next_game.json").write_text(json.dumps({
+        "player_id": player_id,
+        "predicted_points": _safe_float(np.round(last["PRED_PTS"], 1)),
+        "as_of": datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    }, indent=2, allow_nan=False))
+
+    # predictions.csv
+    if csv_src_path and Path(csv_src_path).exists():
+        copy2(csv_src_path, out_dir / "predictions.csv")
+    else:
+        pred_df.to_csv(out_dir / "predictions.csv", index=False)
+
+    # plots (optional)
+    try:
+        if plot_pred_path and Path(plot_pred_path).exists():
+            copy2(plot_pred_path, plots_dir / "pred_vs_actual.png")
+        if plot_resid_path and Path(plot_resid_path).exists():
+            copy2(plot_resid_path, plots_dir / "residuals_hist.png")
+    except Exception as e:
+        print(f"(copy plots) {e}")
+
+    print(f"[publish] wrote static files to {out_dir}")
+
 if __name__ == "__main__":
     # 1) Fetch raw data (expect 'no games' prior to debut due to injuries)
     all_seasons = TRAIN_SEASONS + [TEST_SEASON]
@@ -289,18 +458,53 @@ if __name__ == "__main__":
     y_pred = best_model.predict(X_test)
 
     # 6) Evaluate
-    _ = evaluate_and_report(y_test, y_pred, l5_base, std_base)
+    metrics = evaluate_and_report(y_test, y_pred, l5_base, std_base)
 
     # 7) Save artifacts
     out = test[["GAME_ID","GAME_DATE","SEASON","PTS"]].copy()
     out["PRED_PTS"]     = y_pred
     out["L5_BASELINE"]  = l5_base
     out["STD_BASELINE"] = std_base
-    out.to_csv("embiid_svr_2024_25_predictions.csv", index=False)
-    print("Saved CSV: embiid_svr_2024_25_predictions.csv")
+    csv_path = "tatum_svr_2024_25_predictions.csv"
+    out.to_csv(csv_path, index=False)
+    print(f"Saved CSV: {csv_path}")
 
     save_plots(out)
     print("Saved plots: embiid_pred_vs_actual_2024_25.png, embiid_residuals_hist_2024_25.png")
+
+    export_static_for_pages(
+        player_id="embiid",
+        player_name=PLAYER_NAME,
+        season=TEST_SEASON,
+        pred_df=out,
+        metrics=metrics,
+        csv_src_path=csv_path,
+        plot_pred_path="tatum_pred_vs_actual_2024_25.png",
+        plot_resid_path="tatum_residuals_hist_2024_25.png",
+    )
+
+    last_tr_idx, last_va_idx = list(expanding_window_splits(train))[-1]
+    X_val = train.iloc[last_va_idx][FEATURE_COLS].values
+    y_val = train.iloc[last_va_idx]["PTS"].values
+    y_val_hat = best_model.predict(X_val)
+    corr_val = float(np.corrcoef(y_val_hat, y_val)[0, 1]) if (np.std(y_val_hat) > 1e-8 and np.std(y_val) > 1e-8) else np.nan
+
+    calib_info = {
+        "a": 0.0,
+        "b": 1.0,
+        "corr": None if not np.isfinite(corr_val) else corr_val,
+        "desc": "identity (no calibration)"
+    }
+
+    upload_csv_and_run_record(
+        csv_path=csv_path,
+        metrics=metrics,
+        best_params=gs.best_params_,
+        calibration=calib_info,
+        feature_cols=FEATURE_COLS,
+        row_count=len(out),
+        model_name="SVR",
+    )
 
     save_predictions_to_mongo(out)
     print("Done.")
